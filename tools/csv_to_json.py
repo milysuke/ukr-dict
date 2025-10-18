@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import json, os, sys, hashlib
 
 ROOT = os.getcwd()
@@ -13,7 +13,6 @@ def sha_short(b: bytes):
     return hashlib.sha1(b).hexdigest()[:12]
 
 def read_text_any(path):
-    # robust reader: UTF-16LE/BE, UTF-8(BOM), UTF-8, CP932
     with open(path, "rb") as f:
         b = f.read()
     if b.startswith(b"\xff\xfe"):
@@ -57,6 +56,7 @@ def main():
 
     with open(CFG_PATH, "r", encoding="utf-8") as rf:
         cfg = json.load(rf)
+
     files = cfg.get("files", [])
     manifest = {"datasets": []}
     total_rows = 0
