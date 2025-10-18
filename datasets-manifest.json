@@ -4,7 +4,7 @@
       "path": "jap-ukr.json",
       "source": "jap-ukr.csv",
       "label": "jap-ukr.csv",
-      "version": "0bc0fd4ab64b"
+      "version": "e37219c58a29"
     },
     {
       "path": "jap-ukr-lat.json",
@@ -40,13 +40,13 @@
       "path": "ukr-henka.json",
       "source": "ukr-henka.csv",
       "label": "ukr-henka.csv",
-      "version": "db4e1cf5eb9c"
+      "version": "45eb5a437960"
     },
     {
       "path": "ukr-jap.json",
       "source": "ukr-jap.csv",
       "label": "ukr-jap.csv",
-      "version": "82353df559ce"
+      "version": "ff0141295928"
     },
     {
       "path": "ukr-jap-ad.json",
@@ -64,7 +64,7 @@
       "path": "ukr-jap-lat.json",
       "source": "ukr-jap-lat.csv",
       "label": "ukr-jap-lat.csv",
-      "version": "fd64fd7f10cb"
+      "version": "b4bac914b4cf"
     }
   ]
 }
