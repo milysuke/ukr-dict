@@ -1,3 +1,70 @@
 {
-  "datasets": []
+  "datasets": [
+    {
+      "path": "jap-ukr.json",
+      "source": "jap-ukr.csv",
+      "label": "jap-ukr.csv",
+      "version": "0bc0fd4ab64b"
+    },
+    {
+      "path": "jap-ukr-lat.json",
+      "source": "jap-ukr-lat.csv",
+      "label": "jap-ukr-lat.csv",
+      "version": "99b15e7b09e2"
+    },
+    {
+      "path": "jap-ukr-yomi.json",
+      "source": "jap-ukr-yomi.csv",
+      "label": "jap-ukr-yomi.csv",
+      "version": "7edebb829b8d"
+    },
+    {
+      "path": "ukr-acc.json",
+      "source": "ukr-acc.csv",
+      "label": "ukr-acc.csv",
+      "version": "0606b72f270e"
+    },
+    {
+      "path": "ukr-frek-pro.json",
+      "source": "ukr-frek-pro.csv",
+      "label": "ukr-frek-pro.csv",
+      "version": "09679863a754"
+    },
+    {
+      "path": "ukr-frek-rev.json",
+      "source": "ukr-frek-rev.csv",
+      "label": "ukr-frek-rev.csv",
+      "version": "f6b903031e7a"
+    },
+    {
+      "path": "ukr-henka.json",
+      "source": "ukr-henka.csv",
+      "label": "ukr-henka.csv",
+      "version": "db4e1cf5eb9c"
+    },
+    {
+      "path": "ukr-jap.json",
+      "source": "ukr-jap.csv",
+      "label": "ukr-jap.csv",
+      "version": "82353df559ce"
+    },
+    {
+      "path": "ukr-jap-ad.json",
+      "source": "ukr-jap-ad.csv",
+      "label": "ukr-jap-ad.csv",
+      "version": "214696a25241"
+    },
+    {
+      "path": "ukr-jap-ad-lat.json",
+      "source": "ukr-jap-ad-lat.csv",
+      "label": "ukr-jap-ad-lat.csv",
+      "version": "430a7238a898"
+    },
+    {
+      "path": "ukr-jap-lat.json",
+      "source": "ukr-jap-lat.csv",
+      "label": "ukr-jap-lat.csv",
+      "version": "fd64fd7f10cb"
+    }
+  ]
 }
