@@ -1,0 +1,5 @@
+const IDB_NAME="dict-cache-v1";const IDB_STORE="datasets";
+function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open(IDB_NAME,1);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains(IDB_STORE))db.createObjectStore(IDB_STORE)};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+export async function idbGet(k){const db=await idbOpen();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,"readonly");const st=tx.objectStore(IDB_STORE);const r=st.get(k);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}
+export async function idbSet(k,v){const db=await idbOpen();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);const r=st.put(v,k);r.onsuccess=()=>res(true);r.onerror=()=>rej(r.error)})}
+export async function idbDel(k){const db=await idbOpen();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,"readwrite");const st=tx.objectStore(IDB_STORE);const r=st.delete(k);r.onsuccess=()=>res(true);r.onerror=()=>rej(r.error)})}

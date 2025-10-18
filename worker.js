@@ -1,0 +1,11 @@
+let ROWS=[];
+function toNFKC(s){try{return s.normalize("NFKC")}catch{return s}}
+function rmAcute(s){return s.normalize("NFD").replace(/\u0301/g,"").normalize("NFC")}
+function rmDakutenMarks(s){return s.normalize("NFD").replace(/[\u3099\u309A]/g,"").normalize("NFC")}
+function kataToHira(s){return s.replace(/[\u30A1-\u30F6]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0x60))}
+const PUNCT_RE=/[!\"#$%&'()*+,\-./:;<=>?@\[\]^_`{|}~、。・「」『』（）［］｛｝〈〉《》【】〜―—…・]/g;
+function foldCase(s){return s.toLocaleLowerCase()}
+function norm(s,opt){if(s==null)s="";if(opt.widthFold)s=toNFKC(s);if(opt.kanaFold)s=kataToHira(s);if(opt.rmDakuten)s=rmDakutenMarks(s);if(opt.rmChoon)s=s.replace(/\u30FC/g,"");if(opt.rmPunct)s=s.replace(PUNCT_RE,"");if(opt.ignoreAccent)s=rmAcute(s);if(opt.caseFold)s=foldCase(s);return s}
+function ensureNorm(opt){for(const r of ROWS){if(r._k!==JSON.stringify(opt)){r.ukN=norm(r.uk,opt);r.jaN=norm(r.ja,opt);r._k=JSON.stringify(opt)}}}
+function buildPredicate(qN,how,mode){if(!qN)return()=>true;if(how==="regex"){let re=new RegExp(qN,"i");return r=>mode==="uk2ja"?re.test(r.ukN):mode==="ja2uk"?re.test(r.jaN):(re.test(r.ukN)||re.test(r.jaN))}else if(how==="exact"){return r=>mode==="uk2ja"?r.ukN===qN:mode==="ja2uk"?r.jaN===qN:(r.ukN===qN||r.jaN===qN)}else if(how==="starts"){return r=>mode==="uk2ja"?r.ukN.startsWith(qN):mode==="ja2uk"?r.jaN.startsWith(qN):(r.ukN.startsWith(qN)||r.jaN.startsWith(qN))}else{return r=>mode==="uk2ja"?r.ukN.includes(qN):mode==="ja2uk"?r.jaN.includes(qN):(r.ukN.includes(qN)||r.jaN.includes(qN))}}
+self.onmessage=e=>{const{type}=e.data;try{if(type==="initRows"){ROWS=(e.data.rows||[]).map(r=>({uk:r.uk||"",ja:r.ja||"",src:r.src||""}));self.postMessage({type:"ready"})}else if(type==="search"){const{query,how,mode,opt,page,pageSize}=e.data;ensureNorm(opt);const qN=norm(query||"",opt);const pred=buildPredicate(qN,how,mode);const hits=[];for(const r of ROWS)if(pred(r))hits.push(r);const total=hits.length;const start=page*pageSize;const rows=hits.slice(start,start+pageSize);const note=query?"":"（検索語未入力のため一部のみ表示）";self.postMessage({type:"searchResult",payload:{total,rows,note}})}}catch(err){self.postMessage({type:"error",payload:err.message||String(err)})}}

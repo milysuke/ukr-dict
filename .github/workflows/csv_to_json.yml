@@ -1,0 +1,35 @@
+name: CSV to JSON (minify) + Manifest
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "**.csv"
+      - "**.tsv"
+      - "config.json"
+      - "tools/**"
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Run CSV→JSON converter
+        run: |
+          python -m pip install --upgrade pip
+          python tools/csv_to_json.py
+      - name: Commit changes (JSON & manifest)
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-convert CSV→JSON & update manifest"
+          file_pattern: "*.json datasets-manifest.json"
