@@ -1,3 +1,4 @@
+Ôªø# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 import json, os, sys, hashlib
 
@@ -11,42 +12,35 @@ def minify(obj):
 def sha_short(b: bytes):
     return hashlib.sha1(b).hexdigest()[:12]
 
-# ---------- robust text reader (auto-encoding) ----------
 def read_text_any(path):
     with open(path, "rb") as f:
         b = f.read()
-    # BOM-based detection
     if b.startswith(b"\xff\xfe"):
         return b.decode("utf-16le"), "utf-16le"
     if b.startswith(b"\xfe\xff"):
         return b.decode("utf-16be"), "utf-16be"
     if b.startswith(b"\xef\xbb\xbf"):
         return b.decode("utf-8-sig"), "utf-8-sig"
-    # trial decodes
     for enc in ("utf-8", "cp932", "latin-1"):
         try:
             return b.decode(enc), enc
         except UnicodeDecodeError:
             pass
-    # last resort
     return b.decode("utf-8", errors="replace"), "utf-8*"
 
 def autodelim(line: str):
-    # tab ÇóDêÊÅBñ≥ÇØÇÍÇŒÉJÉìÉ}àµÇ¢
     return "\t" if ("\t" in line) else ","
 
 def convert_lines(lines, src_col, dst_col, direction, label):
     rows = []
     for line in lines:
-        if not line:
-            continue
+        if not line: continue
         delim = autodelim(line)
         cols = line.split(delim)
         while len(cols) <= max(src_col, dst_col):
             cols.append("")
         src = cols[src_col] if src_col < len(cols) else ""
         dst = cols[dst_col] if dst_col < len(cols) else ""
-        # map to canonical fields
         if direction == "ja2uk":
             uk, ja = (dst or ""), (src or "")
         else:
