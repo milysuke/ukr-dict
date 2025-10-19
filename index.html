@@ -79,7 +79,7 @@ function currentOptions(){return{ignoreAccent:$ignoreAccent.checked,caseFold:$ca
 function requestSearch(append){worker.postMessage({type:"search",query:$q.value.trim(),how:$match.value,mode:MODE,opt:currentOptions(),page:PAGE,pageSize:(CFG.page_size||200)})}
 function renderPage(append){const rows=LAST_RESULT?LAST_RESULT.rows:[];if(!append)$tbody.innerHTML="";const esc=s=>(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;");rows.forEach(r=>{const tr=document.createElement("tr");tr.innerHTML=`<td>${esc(r.uk)}</td><td>${esc(r.ja)}</td><td>${esc(r.src)}</td>`;$tbody.appendChild(tr)});$footnote.textContent=LAST_RESULT?.note||""}
 </script>
-<!-- injected by assistant: dataset defaults + toggle-all + default match -->
+<!-- injected by assistant (v2): dataset defaults + toggle-all + default match -->
 <script>
 (function (){
   function ready(fn){
@@ -93,9 +93,29 @@ function renderPage(append){const rows=LAST_RESULT?LAST_RESULT.rows:[];if(!appen
       if (matchSel) matchSel.value = "starts";
     } catch(e){}
 
+    var fileChecksContainer = document.getElementById("fileChecks");
+
+    // ② 初回のみ「ukr-jap.csv」だけON（他はOFF）
+    try {
+      var FLAG_KEY = "force_init_ukr_jap_only_done";
+      if (!localStorage.getItem(FLAG_KEY) && fileChecksContainer) {
+        var boxes = fileChecksContainer.querySelectorAll('input[type="checkbox"]');
+        if (boxes.length) {
+          boxes.forEach(function(b){
+            var label = b.id ? document.querySelector('label[for="'+b.id+'"]') : null;
+            var text = (label ? label.textContent : "").trim();
+            var fname = (b.getAttribute("data-filename") || b.value || "").toString();
+            var isTarget = /(^|[\/\s])ukr-jap\.csv($|\s)/i.test(text) || /ukr-jap\.csv$/i.test(fname);
+            b.checked = isTarget;
+          });
+          boxes.forEach(function(b){ b.dispatchEvent(new Event("change")); });
+          localStorage.setItem(FLAG_KEY, "1");
+        }
+      }
+    } catch(e){}
+
     // ③ 「全選択/全解除」ボタンを追加
     try {
-      var fileChecksContainer = document.getElementById("fileChecks");
       if (fileChecksContainer && !document.getElementById("toggleAll")) {
         var btn = document.createElement("button");
         btn.id = "toggleAll";
@@ -115,31 +135,6 @@ function renderPage(append){const rows=LAST_RESULT?LAST_RESULT.rows:[];if(!appen
             b.dispatchEvent(new Event("change"));
           });
         });
-      }
-    } catch(e){}
-
-    // ② 初回のみ「ukr-jap.csv」だけON（他はOFF）
-    try {
-      var FLAG_KEY = "init_dataset_ukr_jap_only_done";
-      if (!localStorage.getItem(FLAG_KEY)) {
-        var cont = document.getElementById("fileChecks");
-        if (cont) {
-          var boxes = cont.querySelectorAll('input[type="checkbox"]');
-          if (boxes.length) {
-            var found = false;
-            boxes.forEach(function(b){
-              var text = "";
-              var label = b.id ? document.querySelector('label[for="'+b.id+'"]') : null;
-              if (label) text = (label.textContent || "").trim();
-              var fname = (b.getAttribute("data-filename") || b.value || "").toString();
-              var shouldOn = /(^|[\/\s])ukr-jap\.csv($|\s)/i.test(text) || /ukr-jap\.csv$/i.test(fname);
-              if (shouldOn) found = true;
-              b.checked = shouldOn;
-            });
-            boxes.forEach(function(b){ b.dispatchEvent(new Event("change")); });
-            localStorage.setItem(FLAG_KEY, "1");
-          }
-        }
       }
     } catch(e){}
   });
