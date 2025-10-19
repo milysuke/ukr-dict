@@ -40,7 +40,7 @@ tr:nth-child(even){background:rgba(127,127,127,0.04)}
   </div>
   <div class="row">
     <span class="pill">一致方法:
-      <select id="match"><option value="contains">部分一致</option><option value="starts">前方一致</option><option value="exact">完全一致</option><option value="regex">正規表現</option></select>
+      <select id="match"><option value="contains">部分一致</option><option value="starts" selected>前方一致</option><option value="exact">完全一致</option><option value="regex">正規表現</option></select>
     </span>
     <label class="pill"><input type="checkbox" id="ignoreAccent" checked> アクセント無視（U+0301）</label>
     <label class="pill"><input type="checkbox" id="caseFold" checked> 大文字/小文字 無視</label>
@@ -50,7 +50,7 @@ tr:nth-child(even){background:rgba(127,127,127,0.04)}
     <label class="pill"><input type="checkbox" id="rmChoon"> 長音「ー」 除去</label>
     <label class="pill"><input type="checkbox" id="rmPunct"> 約物・句読点 除去</label>
   </div>
-  <div class="row"><span class="pill">データセット: <span id="fileChecks"></span></span></div>
+  <div class="row"><span class="pill">データセット: <button id="toggleAll" type="button">全選択/全解除</button> <span id="fileChecks"></span></span></div>
   <div class="row muted">行数: <span id="rowCount">-</span> ／ ヒット: <span id="hitCount">0</span> ／ 表示: <span id="shownCount">0</span> <span class="badge" id="status">準備中…</span></div>
 </div>
 <div class="spacer"></div>
@@ -72,123 +72,52 @@ function setMode(m){MODE=m;document.querySelectorAll(".seg button").forEach(b=>b
 document.getElementById("mode-uk2ja").onclick=()=>setMode("uk2ja");document.getElementById("mode-ja2uk").onclick=()=>setMode("ja2uk");document.getElementById("mode-both").onclick=()=>setMode("both");
 $q.addEventListener("input",debounce(doSearch,120));[$match,$ignoreAccent,$caseFold,$widthFold,$kanaFold,$rmDakuten,$rmChoon,$rmPunct].forEach(el=>el.addEventListener("change",doSearch));$clear.addEventListener("click",()=>$q.value="");$clear.addEventListener("click",()=>{doSearch();$q.focus()});$more.addEventListener("click",()=>{PAGE+=1;requestSearch(true)});
 Promise.all([fetch("config.json",{cache:"no-store"}).then(r=>r.json()),fetch("datasets-manifest.json",{cache:"no-store"}).then(r=>r.json()).catch(()=>({datasets:[]}))]).then(async([cfg,man])=>{CFG=cfg;MAN=man;renderFileChecks(CFG.files);const enabledIdx=enabledFileIndices();const datasets=await loadDatasets(enabledIdx);worker.postMessage({type:"initRows",rows:datasets.rows});$rowCount.textContent=datasets.rows.length.toLocaleString()}).catch(err=>{$status.textContent="設定読込エラー: "+err.message});
-function renderFileChecks(files){$fileChecks.innerHTML="";files.forEach((f,i)=>{const id="f"+i;const label=f.label||(f.json||f.csv);const span=document.createElement("span");span.className="filechk";span.innerHTML=`<input type="checkbox" id="${id}" data-index="${i}" checked><label for="${id}">${label}</label>`;$fileChecks.appendChild(span)});$fileChecks.querySelectorAll("input").forEach(inp=>{inp.addEventListener("change",async()=>{$status.textContent="データ再読込…";const enabledIdx=enabledFileIndices();const datasets=await loadDatasets(enabledIdx);worker.postMessage({type:"initRows",rows:datasets.rows});$rowCount.textContent=datasets.rows.length.toLocaleString();$status.textContent="準備完了";doSearch()})})}
-async function loadDatasets(indices){let allRows=[];for(const i of indices){const f=CFG.files[i];const man=(MAN.datasets||[]).find(d=>d.path===f.json);const ver=man?.version||"noversion";const cacheKey=`ds:${f.json}:${ver}`;let rows=await idbGet(cacheKey);if(!rows){let ok=false;if(f.json){try{const arr=await fetch(f.json,{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject(new Error("JSONなし")));rows=arr;ok=true}catch{}}if(!ok&&f.csv){const txt=await fetch(f.csv,{cache:"no-store"}).then(r=>r.text());const delim = txt.count("\t")>0 ? "\t" : ",";rows=txt.replace(/\r\n?/g,"\n").split("\n").filter(Boolean).map(line=>{const cols=line.split(delim);while(cols.length<3)cols.push("");const src=cols[f.src_col||0]||"";const dst=cols[f.dst_col||2]||"";const uk = f.direction==="ja2uk"?dst:src;const ja = f.direction==="ja2uk"?src:dst;return {uk,ja,src:(f.label||f.csv)}})}try{await idbSet(cacheKey,rows)}catch{}}allRows=allRows.concat(rows.map(r=>({uk:r.uk||"",ja:r.ja||"",src:r.src||(f.label||"")})))}return{rows:allRows}}
+function renderFileChecks(files){
+  $fileChecks.innerHTML="";
+  files.forEach((f,i)=>{
+    const id="f"+i;
+    const label=f.label||(f.json||f.csv);
+    const checked = (f.csv === "ukr-jap.csv");
+    const span=document.createElement("span");
+    span.className="filechk";
+    span.innerHTML = `<input type="checkbox" id="${id}" data-index="${i}" ${checked?"checked":""}><label for="${id}">${label}</label>`;
+    $fileChecks.appendChild(span);
+  });
+  // change -> reload
+  $fileChecks.querySelectorAll("input").forEach(inp=>{
+    inp.addEventListener("change", async ()=>{
+      $status.textContent="データ再読込…";
+      const enabledIdx = enabledFileIndices();
+      const datasets = await loadDatasets(enabledIdx);
+      worker.postMessage({type:"initRows", rows: datasets.rows});
+      $rowCount.textContent = datasets.rows.length.toLocaleString();
+      $status.textContent="準備完了";
+      doSearch();
+    });
+  });
+  // toggle-all button
+  const toggle = document.getElementById("toggleAll");
+  if (toggle && !toggle._bound){
+    toggle._bound = true;
+    toggle.addEventListener("click", async ()=>{
+      const boxes = $fileChecks.querySelectorAll('input[type="checkbox"]');
+      const allOn = boxes.length>0 && [...boxes].every(b=>b.checked);
+      boxes.forEach(b=>b.checked = !allOn);
+      // reload
+      $status.textContent="データ再読込…";
+      const enabledIdx = enabledFileIndices();
+      const datasets = await loadDatasets(enabledIdx);
+      worker.postMessage({type:"initRows", rows: datasets.rows});
+      $rowCount.textContent = datasets.rows.length.toLocaleString();
+      $status.textContent="準備完了";
+      doSearch();
+    });
+  }
+}" data-index="${i}" checked><label for="${id}">${label}</label>`;$fileChecks.appendChild(span)});$fileChecks.querySelectorAll("input").forEach(inp=>{inp.addEventListener("change",async()=>{$status.textContent="データ再読込…";const enabledIdx=enabledFileIndices();const datasets=await loadDatasets(enabledIdx);worker.postMessage({type:"initRows",rows:datasets.rows});$rowCount.textContent=datasets.rows.length.toLocaleString();$status.textContent="準備完了";doSearch()})})}
+async function loadDatasets(indices){let allRows=[];for(const i of indices){const f=CFG.files[i];const man=(MAN.datasets||[]).find(d=>d.path===f.json);const ver=man?.version||"noversion";const cacheKey=`ds:${f.json}:${ver}`;let rows=await idbGet(cacheKey);if(!rows){let ok=false;if(f.json){try{const arr=await fetch(f.json,{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject(new Error("JSONなし")));rows=arr;ok=true}catch{}}if(!ok&&f.csv){const txt=await fetch(f.csv,{cache:"no-store"}).then(r=>r.text());const delim = txt.includes("\t") ? "\t" : ",";rows=txt.replace(/\r\n?/g,"\n").split("\n").filter(Boolean).map(line=>{const cols=line.split(delim);while(cols.length<3)cols.push("");const src=cols[f.src_col||0]||"";const dst=cols[f.dst_col||2]||"";const uk = f.direction==="ja2uk"?dst:src;const ja = f.direction==="ja2uk"?src:dst;return {uk,ja,src:(f.label||f.csv)}})}try{await idbSet(cacheKey,rows)}catch{}}allRows=allRows.concat(rows.map(r=>({uk:r.uk||"",ja:r.ja||"",src:r.src||(f.label||"")})))}return{rows:allRows}}
 function doSearch(){PAGE=0;requestSearch(false)}
 function currentOptions(){return{ignoreAccent:$ignoreAccent.checked,caseFold:$caseFold.checked,widthFold:$widthFold.checked,kanaFold:$kanaFold.checked,rmDakuten:$rmDakuten.checked,rmChoon:$rmChoon.checked,rmPunct:$rmPunct.checked}}
 function requestSearch(append){worker.postMessage({type:"search",query:$q.value.trim(),how:$match.value,mode:MODE,opt:currentOptions(),page:PAGE,pageSize:(CFG.page_size||200)})}
 function renderPage(append){const rows=LAST_RESULT?LAST_RESULT.rows:[];if(!append)$tbody.innerHTML="";const esc=s=>(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;");rows.forEach(r=>{const tr=document.createElement("tr");tr.innerHTML=`<td>${esc(r.uk)}</td><td>${esc(r.ja)}</td><td>${esc(r.src)}</td>`;$tbody.appendChild(tr)});$footnote.textContent=LAST_RESULT?.note||""}
-</script>
-<!-- injected by assistant (v2): dataset defaults + toggle-all + default match -->
-<script>
-(function (){
-  function ready(fn){
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
-    else fn();
-  }
-  ready(function(){
-    // ① 既定の一致方法を「前方一致」に
-    try {
-      var matchSel = document.getElementById("match");
-      if (matchSel) matchSel.value = "starts";
-    } catch(e){}
-
-    var fileChecksContainer = document.getElementById("fileChecks");
-
-    // ② 初回のみ「ukr-jap.csv」だけON（他はOFF）
-    try {
-      var FLAG_KEY = "force_init_ukr_jap_only_done";
-      if (!localStorage.getItem(FLAG_KEY) && fileChecksContainer) {
-        var boxes = fileChecksContainer.querySelectorAll('input[type="checkbox"]');
-        if (boxes.length) {
-          boxes.forEach(function(b){
-            var label = b.id ? document.querySelector('label[for="'+b.id+'"]') : null;
-            var text = (label ? label.textContent : "").trim();
-            var fname = (b.getAttribute("data-filename") || b.value || "").toString();
-            var isTarget = /(^|[\/\s])ukr-jap\.csv($|\s)/i.test(text) || /ukr-jap\.csv$/i.test(fname);
-            b.checked = isTarget;
-          });
-          boxes.forEach(function(b){ b.dispatchEvent(new Event("change")); });
-          localStorage.setItem(FLAG_KEY, "1");
-        }
-      }
-    } catch(e){}
-
-    // ③ 「全選択/全解除」ボタンを追加
-    try {
-      if (fileChecksContainer && !document.getElementById("toggleAll")) {
-        var btn = document.createElement("button");
-        btn.id = "toggleAll";
-        btn.type = "button";
-        btn.textContent = "全選択/全解除";
-        if (fileChecksContainer.parentNode) {
-          fileChecksContainer.parentNode.insertBefore(btn, fileChecksContainer);
-        } else {
-          fileChecksContainer.before(btn);
-        }
-        btn.addEventListener("click", function(){
-          var boxes = fileChecksContainer.querySelectorAll('input[type="checkbox"]');
-          if (!boxes.length) return;
-          var allOn = Array.from(boxes).every(function(b){ return b.checked; });
-          boxes.forEach(function(b){
-            b.checked = !allOn;
-            b.dispatchEvent(new Event("change"));
-          });
-        });
-      }
-    } catch(e){}
-  });
-})();
-</script>
-(function (){
-  function ready(fn){
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
-    else fn();
-  }
-  ready(function(){
-    // ① 一致方法を「前方一致」に固定
-    var matchSel = document.getElementById("match");
-    if (matchSel) matchSel.value = "starts";
-
-    // ② データセット初期化
-    var fileChecksContainer = document.getElementById("fileChecks");
-    if (fileChecksContainer) {
-      // 初回アクセス時のみ強制する
-      var FLAG_KEY = "force_init_ukr_jap_only_done";
-      if (!localStorage.getItem(FLAG_KEY)) {
-        var boxes = fileChecksContainer.querySelectorAll('input[type="checkbox"]');
-        boxes.forEach(function(b){
-          var label = b.id ? document.querySelector('label[for="'+b.id+'"]') : null;
-          var text = (label ? label.textContent : "").trim();
-          var fname = (b.getAttribute("data-filename") || b.value || "").toString();
-          var isTarget = /ukr-jap\.csv$/i.test(fname) || /ukr-jap\.csv/i.test(text);
-          b.checked = isTarget;
-        });
-        // 状態を適用
-        boxes.forEach(function(b){
-          b.dispatchEvent(new Event("change"));
-        });
-        localStorage.setItem(FLAG_KEY,"1");
-      }
-    }
-
-    // ③ 全選択/全解除ボタン
-    if (fileChecksContainer && !document.getElementById("toggleAll")) {
-      var btn = document.createElement("button");
-      btn.id = "toggleAll";
-      btn.type = "button";
-      btn.textContent = "全選択/全解除";
-      fileChecksContainer.parentNode.insertBefore(btn, fileChecksContainer);
-      btn.addEventListener("click", function(){
-        var boxes = fileChecksContainer.querySelectorAll('input[type="checkbox"]');
-        var allOn = Array.from(boxes).every(function(b){ return b.checked; });
-        boxes.forEach(function(b){
-          b.checked = !allOn;
-          b.dispatchEvent(new Event("change"));
-        });
-      });
-    }
-  });
-})();
 </script>
 </body></html>
