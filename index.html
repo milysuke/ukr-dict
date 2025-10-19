@@ -120,4 +120,71 @@ function currentOptions(){return{ignoreAccent:$ignoreAccent.checked,caseFold:$ca
 function requestSearch(append){worker.postMessage({type:"search",query:$q.value.trim(),how:$match.value,mode:MODE,opt:currentOptions(),page:PAGE,pageSize:(CFG.page_size||200)})}
 function renderPage(append){const rows=LAST_RESULT?LAST_RESULT.rows:[];if(!append)$tbody.innerHTML="";const esc=s=>(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;");rows.forEach(r=>{const tr=document.createElement("tr");tr.innerHTML=`<td>${esc(r.uk)}</td><td>${esc(r.ja)}</td><td>${esc(r.src)}</td>`;$tbody.appendChild(tr)});$footnote.textContent=LAST_RESULT?.note||""}
 </script>
+<!-- init: default match, datasets -> only ukr-jap.csv selected on first load, toggle-all -->
+<script>
+(function(){
+  function onceReady(fn){
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
+    else fn();
+  }
+  onceReady(function(){
+    // 1) 初期一致方法 = 前方一致（保存復元があればそちら優先）
+    var matchSel = document.getElementById("match");
+    if (matchSel && !matchSel.dataset.userSet) matchSel.value = "starts";
+
+    var cont = document.getElementById("fileChecks");
+    if (!cont) return;
+
+    // 2) 全選択/全解除ボタン（なければ追加）
+    if (!document.getElementById("toggleAll")) {
+      var btn = document.createElement("button");
+      btn.id = "toggleAll";
+      btn.type = "button";
+      btn.textContent = "全選択/全解除";
+      // fileChecks の直前に置く
+      if (cont.parentNode) cont.parentNode.insertBefore(btn, cont);
+      btn.addEventListener("click", function(){
+        var boxes = cont.querySelectorAll('input[type="checkbox"]');
+        if (!boxes.length) return;
+        var allOn = Array.from(boxes).every(b => b.checked);
+        boxes.forEach(b => { b.checked = !allOn; b.dispatchEvent(new Event("change")); });
+      });
+    }
+
+    // 3) 辞書リストが描画された「後」に、初回だけ ukr-jap.csv のみONに揃える
+    //   → 既存コードが非同期でチェックボックスを作る前提なので MutationObserver を使う
+    var FLAG = "init_only_ukr_jap_done";
+    var done = false;
+
+    function forceUkrJapOnly(){
+      if (done || localStorage.getItem(FLAG)) return;
+      var boxes = cont.querySelectorAll('input[type="checkbox"]');
+      if (!boxes.length) return; // まだ描画されていない
+      var found = false;
+      boxes.forEach(function(b){
+        var label = b.id ? document.querySelector('label[for="'+b.id+'"]') : null;
+        var text = (label ? label.textContent : "").trim();
+        var fname = (b.getAttribute("data-filename") || b.value || "").toString();
+        var isTarget = /(^|[\/\s])ukr-jap\.csv($|\s)/i.test(text) || /ukr-jap\.csv$/i.test(fname);
+        b.checked = isTarget;
+        if (isTarget) found = true;
+      });
+      if (found) {
+        boxes.forEach(b => b.dispatchEvent(new Event("change"))); // 既存の再読込処理を起動
+        localStorage.setItem(FLAG, "1");
+        done = true;
+      }
+    }
+
+    // 先に試す（すでに描画済みのとき）
+    forceUkrJapOnly();
+
+    // 以後、描画が遅れても検知して一度だけ適用
+    var mo = new MutationObserver(function(){
+      forceUkrJapOnly();
+    });
+    mo.observe(cont, {childList:true, subtree:true});
+  });
+})();
+</script>
 </body></html>
