@@ -24,6 +24,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
+      - name: Show converter snippet
+        run: sed -n '60,80p' tools/csv_to_json.py
       - name: Run CSV→JSON converter
         run: |
           python -m pip install --upgrade pip
