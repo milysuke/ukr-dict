@@ -50,7 +50,7 @@ def main():
     for f in files:
         csv_path = f.get("csv")
         # ★問題の行：絶対にこの1行のままにしてください
-        json_path = f.get("json") or (os.path.splitext(csv_path)[0] + ".json")
+    　　json_path = f.get("json") or os.path.splitext(csv_path)[0] + ".json"
         label = f.get("label") or csv_path
         direction = f.get("direction","uk2ja")
         src_col = int(f.get("src_col",0))
