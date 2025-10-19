@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">
+﻿<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ウクライナ語日本語・日本語ウクライナ語辞典（GitHub Pages）</title>
 <style>
@@ -85,16 +85,33 @@ $selectAll.addEventListener("click",()=>{$fileChecks.querySelectorAll("input[typ
 $deselectAll.addEventListener("click",()=>{$fileChecks.querySelectorAll("input[type=checkbox]").forEach(cb=>cb.checked=false);handleFileCheckChange()});
 async function handleFileCheckChange(){$status.textContent="データ再読込…";const enabledIdx=enabledFileIndices();const datasets=await loadDatasets(enabledIdx);worker.postMessage({type:"initRows",rows:datasets.rows});$rowCount.textContent=datasets.rows.length.toLocaleString();$status.textContent="準備完了";doSearch()}
 Promise.all([fetch("config.json",{cache:"no-store"}).then(r=>r.json()),fetch("datasets-manifest.json",{cache:"no-store"}).then(r=>r.json()).catch(()=>({datasets:[]}))]).then(async([cfg,man])=>{CFG=cfg;MAN=man;renderFileChecks(CFG.files);const enabledIdx=enabledFileIndices();const datasets=await loadDatasets(enabledIdx);worker.postMessage({type:"initRows",rows:datasets.rows});$rowCount.textContent=datasets.rows.length.toLocaleString()}).catch(err=>{$status.textContent="設定読込エラー: "+err.message});
-function renderFileChecks(files){$fileChecks.innerHTML="";files.forEach((f,i)=>{const id="f"+i;
-  // JSONファイルを優先してラベルを作成
-  const primaryFile = f.json || f.csv;
-  const label=f.label||primaryFile;
-  // 初期選択の判定: ukr-jap.jsonとukr-jap-ad.jsonのみチェック
-  const filename = f.json || f.csv || "";
-  const shouldCheck = filename.includes("ukr-jap.json") || filename.includes("ukr-jap-ad.json") || 
-                     (filename.includes("ukr-jap.csv") && !filename.includes("ukr-jap-lat") && !filename.includes("ukr-jap-yomi")) || 
-                     filename.includes("ukr-jap-ad.csv");
-  const span=document.createElement("span");span.className="filechk";span.innerHTML=`<input type="checkbox" id="${id}" data-index="${i}" ${shouldCheck ? 'checked' : ''}><label for="${id}">${label}</label>`;$fileChecks.appendChild(span)});$fileChecks.querySelectorAll("input").forEach(inp=>{inp.addEventListener("change",handleFileCheckChange)})}
+
+function renderFileChecks(files){
+  const $fileChecks = document.getElementById("fileChecks");
+  $fileChecks.innerHTML = "";
+  const defaults = new Set(["ukr-jap.json","ukr-jap-ad.json"]); // 初期ONの2つ
+
+  files.forEach((f,i)=>{
+    const id = "f"+i;
+    const filename = (f.json && f.json.trim()) ? f.json : (f.csv || "");
+    const label = (f.label && f.label.trim()) ? f.label : (filename.split("/").pop() || filename);
+
+    const base = filename.split("/").pop();
+    const shouldCheck = defaults.has(base);
+
+    const span = document.createElement("span");
+    span.className = "filechk";
+    span.innerHTML = `<input type="checkbox" id="${id}" data-index="${i}" ${shouldCheck?"checked":""}><label for="${id}">${label}</label>`;
+    // data-filename を載せておく（ローダが参照しやすいように）
+    span.querySelector("input").setAttribute("data-filename", filename);
+    $fileChecks.appendChild(span);
+  });
+
+  $fileChecks.querySelectorAll("input").forEach(inp=>{
+    inp.addEventListener("change", handleFileCheckChange);
+  });
+}
+" data-index="${i}" ${shouldCheck ? 'checked' : ''}><label for="${id}">${label}</label>`;$fileChecks.appendChild(span)});$fileChecks.querySelectorAll("input").forEach(inp=>{inp.addEventListener("change",handleFileCheckChange)})}
 async function loadDatasets(indices){let allRows=[];for(const i of indices){const f=CFG.files[i];const man=(MAN.datasets||[]).find(d=>d.path===f.json);const ver=man?.version||"noversion";const cacheKey=`ds:${f.json||f.csv}:${ver}`;let rows=await idbGet(cacheKey);if(!rows){let ok=false;
   // JSONファイルを優先的に読み込む
   if(f.json){try{const arr=await fetch(f.json,{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject(new Error("JSONなし")));rows=arr;ok=true}catch(err){console.log(`JSON読込失敗: ${f.json}`, err)}}
