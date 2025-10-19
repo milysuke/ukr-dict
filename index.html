@@ -140,4 +140,55 @@ function renderPage(append){const rows=LAST_RESULT?LAST_RESULT.rows:[];if(!appen
   });
 })();
 </script>
+(function (){
+  function ready(fn){
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
+    else fn();
+  }
+  ready(function(){
+    // ① 一致方法を「前方一致」に固定
+    var matchSel = document.getElementById("match");
+    if (matchSel) matchSel.value = "starts";
+
+    // ② データセット初期化
+    var fileChecksContainer = document.getElementById("fileChecks");
+    if (fileChecksContainer) {
+      // 初回アクセス時のみ強制する
+      var FLAG_KEY = "force_init_ukr_jap_only_done";
+      if (!localStorage.getItem(FLAG_KEY)) {
+        var boxes = fileChecksContainer.querySelectorAll('input[type="checkbox"]');
+        boxes.forEach(function(b){
+          var label = b.id ? document.querySelector('label[for="'+b.id+'"]') : null;
+          var text = (label ? label.textContent : "").trim();
+          var fname = (b.getAttribute("data-filename") || b.value || "").toString();
+          var isTarget = /ukr-jap\.csv$/i.test(fname) || /ukr-jap\.csv/i.test(text);
+          b.checked = isTarget;
+        });
+        // 状態を適用
+        boxes.forEach(function(b){
+          b.dispatchEvent(new Event("change"));
+        });
+        localStorage.setItem(FLAG_KEY,"1");
+      }
+    }
+
+    // ③ 全選択/全解除ボタン
+    if (fileChecksContainer && !document.getElementById("toggleAll")) {
+      var btn = document.createElement("button");
+      btn.id = "toggleAll";
+      btn.type = "button";
+      btn.textContent = "全選択/全解除";
+      fileChecksContainer.parentNode.insertBefore(btn, fileChecksContainer);
+      btn.addEventListener("click", function(){
+        var boxes = fileChecksContainer.querySelectorAll('input[type="checkbox"]');
+        var allOn = Array.from(boxes).every(function(b){ return b.checked; });
+        boxes.forEach(function(b){
+          b.checked = !allOn;
+          b.dispatchEvent(new Event("change"));
+        });
+      });
+    }
+  });
+})();
+</script>
 </body></html>
