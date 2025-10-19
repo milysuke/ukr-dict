@@ -1,12 +1,26 @@
-<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ウクライナ語日本語・日本語ウクライナ語辞典（GitHub Pages）</title>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <title>ウクライナ語日本語・日本語ウクライナ語辞典（IndexedDB + Worker）</title>
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ウクライナ語日本語・日本語ウクライナ語辞典（GitHub Pages）</title>
 <style>
+body { background:#222; color:#eee; font-family:sans-serif; }
+input,select,button { margin:4px; }
+#results { margin-top:1em; border-collapse:collapse; width:100%; }
+#results th,#results td { border:1px solid #555; padding:4px; }
+.pill { display:inline-block; background:#444; padding:4px 8px; border-radius:6px; margin:2px; }
+.filechk { margin-right:8px; }
+</style>
+</head>
+<body>
+<h2>ウクライナ語日本語・日本語ウクライナ語辞典（IndexedDB + Worker）</h2>
+
+<div>
+  <input id="q" placeholder="検索語を入力…" style="width:60%;">
+  <button id="clearBtn">クリア</button>
 :root{--bg:#fff;--fg:#111;--muted:#666;--border:#ddd;--card:#fafafa;--accent:#0b73ec}
 [data-theme="dark"]{--bg:#0b0f14;--fg:#e6e6e6;--muted:#9aa4af;--border:#2a3441;--card:#121821;--accent:#4aa3ff}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif}
@@ -57,25 +71,7 @@ tr:nth-child(even){background:rgba(127,127,127,0.04)}
   </div>
   <div class="row"><span class="pill">データセット: <span id="fileChecks"></span></span></div>
   <div class="row muted">行数: <span id="rowCount">-</span> ／ ヒット: <span id="hitCount">0</span> ／ 表示: <span id="shownCount">0</span> <span class="badge" id="status">準備中…</span></div>
-body { background:#222; color:#eee; font-family:sans-serif; }
-input,select,button { margin:4px; }
-#results { margin-top:1em; border-collapse:collapse; width:100%; }
-#results th,#results td { border:1px solid #555; padding:4px; }
-.pill { display:inline-block; background:#444; padding:4px 8px; border-radius:6px; margin:2px; }
-.filechk { margin-right:8px; }
-</style>
-</head>
-<body>
-<h2>ウクライナ語日本語・日本語ウクライナ語辞典（IndexedDB + Worker）</h2>
-
-<div>
-  <input id="q" placeholder="検索語を入力…" style="width:60%;">
-  <button id="clearBtn">クリア</button>
 </div>
-<div class="spacer"></div>
-<div class="card">
-  <table id="tbl"><thead><tr><th style="width:38%">ウクライナ語</th><th style="width:38%">日本語</th><th>ソース</th></tr></thead><tbody id="tbody"></tbody></table>
-  <div class="footer"><button id="more" class="hidden">次のページ</button><span class="muted" id="footnote"></span></div>
 
 <div>
   <select id="match">
@@ -91,6 +87,10 @@ input,select,button { margin:4px; }
   <label><input type="checkbox" id="ignoreVoicing"> 濁点/半濁点 除去</label>
   <label><input type="checkbox" id="ignoreLongVowel"> 長音「ー」除去</label>
   <label><input type="checkbox" id="ignorePunct"> 約物・句読点 除去</label>
+<div class="spacer"></div>
+<div class="card">
+  <table id="tbl"><thead><tr><th style="width:38%">ウクライナ語</th><th style="width:38%">日本語</th><th>ソース</th></tr></thead><tbody id="tbody"></tbody></table>
+  <div class="footer"><button id="more" class="hidden">次のページ</button><span class="muted" id="footnote"></span></div>
 </div>
 
 <div>
@@ -119,25 +119,6 @@ input,select,button { margin:4px; }
 </table>
 
 <script type="module">
-import { idbGet, idbSet } from "./idb.js";
-const savedTheme=localStorage.getItem("theme"); if(savedTheme) document.documentElement.setAttribute("data-theme", savedTheme);
-document.getElementById("themeBtn").addEventListener("click",()=>{const cur=document.documentElement.getAttribute("data-theme");const next=cur==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",next);localStorage.setItem("theme",next)});
-const $q=document.getElementById("q"),$match=document.getElementById("match"),$ignoreAccent=document.getElementById("ignoreAccent"),$caseFold=document.getElementById("caseFold"),$widthFold=document.getElementById("widthFold"),$kanaFold=document.getElementById("kanaFold"),$rmDakuten=document.getElementById("rmDakuten"),$rmChoon=document.getElementById("rmChoon"),$rmPunct=document.getElementById("rmPunct"),$fileChecks=document.getElementById("fileChecks"),$clear=document.getElementById("clear"),$status=document.getElementById("status"),$rowCount=document.getElementById("rowCount"),$hit=document.getElementById("hitCount"),$shown=document.getElementById("shownCount"),$tbody=document.getElementById("tbody"),$more=document.getElementById("more"),$footnote=document.getElementById("footnote");
-let CFG=null, MAN=null, MODE="uk2ja", PAGE=0, LAST_RESULT=null; const worker=new Worker("worker.js");
-worker.onmessage=(e)=>{const{type,payload}=e.data;if(type==="ready"){$status.textContent="準備完了";doSearch()}else if(type==="searchResult"){LAST_RESULT=payload;$hit.textContent=payload.total.toLocaleString();$shown.textContent=Math.min(LAST_RESULT.total,(PAGE+1)*(CFG.page_size||200)).toLocaleString();renderPage(false);$more.classList.toggle("hidden",(PAGE+1)*(CFG.page_size||200)>=LAST_RESULT.total)}else if(type==="progress"){$status.textContent=payload}else if(type==="error"){$status.textContent="エラー: "+payload}};
-function debounce(fn,ms=150){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
-function enabledFileIndices(){return[...$fileChecks.querySelectorAll("input[type=checkbox]")].filter(c=>c.checked).map(c=>parseInt(c.dataset.index))}
-function setMode(m){MODE=m;document.querySelectorAll(".seg button").forEach(b=>b.classList.toggle("active",b.dataset.mode===m));doSearch()}
-document.getElementById("mode-uk2ja").onclick=()=>setMode("uk2ja");document.getElementById("mode-ja2uk").onclick=()=>setMode("ja2uk");document.getElementById("mode-both").onclick=()=>setMode("both");
-$q.addEventListener("input",debounce(doSearch,120));[$match,$ignoreAccent,$caseFold,$widthFold,$kanaFold,$rmDakuten,$rmChoon,$rmPunct].forEach(el=>el.addEventListener("change",doSearch));$clear.addEventListener("click",()=>$q.value="");$clear.addEventListener("click",()=>{doSearch();$q.focus()});$more.addEventListener("click",()=>{PAGE+=1;requestSearch(true)});
-Promise.all([fetch("config.json",{cache:"no-store"}).then(r=>r.json()),fetch("datasets-manifest.json",{cache:"no-store"}).then(r=>r.json()).catch(()=>({datasets:[]}))]).then(async([cfg,man])=>{CFG=cfg;MAN=man;renderFileChecks(CFG.files);const enabledIdx=enabledFileIndices();const datasets=await loadDatasets(enabledIdx);worker.postMessage({type:"initRows",rows:datasets.rows});$rowCount.textContent=datasets.rows.length.toLocaleString()}).catch(err=>{$status.textContent="設定読込エラー: "+err.message});
-function renderFileChecks(files){$fileChecks.innerHTML="";files.forEach((f,i)=>{const id="f"+i;const label=f.label||(f.json||f.csv);const span=document.createElement("span");span.className="filechk";span.innerHTML=`<input type="checkbox" id="${id}" data-index="${i}" checked><label for="${id}">${label}</label>`;$fileChecks.appendChild(span)});$fileChecks.querySelectorAll("input").forEach(inp=>{inp.addEventListener("change",async()=>{$status.textContent="データ再読込…";const enabledIdx=enabledFileIndices();const datasets=await loadDatasets(enabledIdx);worker.postMessage({type:"initRows",rows:datasets.rows});$rowCount.textContent=datasets.rows.length.toLocaleString();$status.textContent="準備完了";doSearch()})})}
-async function loadDatasets(indices){let allRows=[];for(const i of indices){const f=CFG.files[i];const man=(MAN.datasets||[]).find(d=>d.path===f.json);const ver=man?.version||"noversion";const cacheKey=`ds:${f.json}:${ver}`;let rows=await idbGet(cacheKey);if(!rows){let ok=false;if(f.json){try{const arr=await fetch(f.json,{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject(new Error("JSONなし")));rows=arr;ok=true}catch{}}if(!ok&&f.csv){const txt=await fetch(f.csv,{cache:"no-store"}).then(r=>r.text());const delim = txt.includes("\t") ? "\t" : ",";rows=txt.replace(/\r\n?/g,"\n").split("\n").filter(Boolean).map(line=>{const cols=line.split(delim);while(cols.length<3)cols.push("");const src=cols[f.src_col||0]||"";const dst=cols[f.dst_col||2]||"";const uk = f.direction==="ja2uk"?dst:src;const ja = f.direction==="ja2uk"?src:dst;return {uk,ja,src:(f.label||f.csv)}})}try{await idbSet(cacheKey,rows)}catch{}}allRows=allRows.concat(rows.map(r=>({uk:r.uk||"",ja:r.ja||"",src:r.src||(f.label||"")})))}return{rows:allRows}}
-function doSearch(){PAGE=0;requestSearch(false)}
-function currentOptions(){return{ignoreAccent:$ignoreAccent.checked,caseFold:$caseFold.checked,widthFold:$widthFold.checked,kanaFold:$kanaFold.checked,rmDakuten:$rmDakuten.checked,rmChoon:$rmChoon.checked,rmPunct:$rmPunct.checked}}
-function requestSearch(append){worker.postMessage({type:"search",query:$q.value.trim(),how:$match.value,mode:MODE,opt:currentOptions(),page:PAGE,pageSize:(CFG.page_size||200)})}
-function renderPage(append){const rows=LAST_RESULT?LAST_RESULT.rows:[];if(!append)$tbody.innerHTML="";const esc=s=>(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;");rows.forEach(r=>{const tr=document.createElement("tr");tr.innerHTML=`<td>${esc(r.uk)}</td><td>${esc(r.ja)}</td><td>${esc(r.src)}</td>`;$tbody.appendChild(tr)});$footnote.textContent=LAST_RESULT?.note||""}
-</script></body></html>
 // ====================== 既存コードの設定部分 ======================
 const $q=document.getElementById("q");
 const $match=document.getElementById("match");
@@ -186,7 +167,32 @@ function renderFileChecks(files){
       setAllChecked(!allOn);
       await reloadDatasetsAndSearch();
     });
-  }
+import { idbGet, idbSet } from "./idb.js";
+const savedTheme=localStorage.getItem("theme"); if(savedTheme) document.documentElement.setAttribute("data-theme", savedTheme);
+document.getElementById("themeBtn").addEventListener("click",()=>{const cur=document.documentElement.getAttribute("data-theme");const next=cur==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",next);localStorage.setItem("theme",next)});
+const $q=document.getElementById("q"),$match=document.getElementById("match"),$ignoreAccent=document.getElementById("ignoreAccent"),$caseFold=document.getElementById("caseFold"),$widthFold=document.getElementById("widthFold"),$kanaFold=document.getElementById("kanaFold"),$rmDakuten=document.getElementById("rmDakuten"),$rmChoon=document.getElementById("rmChoon"),$rmPunct=document.getElementById("rmPunct"),$fileChecks=document.getElementById("fileChecks"),$clear=document.getElementById("clear"),$status=document.getElementById("status"),$rowCount=document.getElementById("rowCount"),$hit=document.getElementById("hitCount"),$shown=document.getElementById("shownCount"),$tbody=document.getElementById("tbody"),$more=document.getElementById("more"),$footnote=document.getElementById("footnote");
+let CFG=null, MAN=null, MODE="uk2ja", PAGE=0, LAST_RESULT=null; const worker=new Worker("worker.js");
+worker.onmessage=(e)=>{const{type,payload}=e.data;if(type==="ready"){$status.textContent="準備完了";doSearch()}else if(type==="searchResult"){LAST_RESULT=payload;$hit.textContent=payload.total.toLocaleString();$shown.textContent=Math.min(LAST_RESULT.total,(PAGE+1)*(CFG.page_size||200)).toLocaleString();renderPage(false);$more.classList.toggle("hidden",(PAGE+1)*(CFG.page_size||200)>=LAST_RESULT.total)}else if(type==="progress"){$status.textContent=payload}else if(type==="error"){$status.textContent="エラー: "+payload}};
+function debounce(fn,ms=150){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
+function enabledFileIndices(){return[...$fileChecks.querySelectorAll("input[type=checkbox]")].filter(c=>c.checked).map(c=>parseInt(c.dataset.index))}
+function setMode(m){MODE=m;document.querySelectorAll(".seg button").forEach(b=>b.classList.toggle("active",b.dataset.mode===m));doSearch()}
+document.getElementById("mode-uk2ja").onclick=()=>setMode("uk2ja");document.getElementById("mode-ja2uk").onclick=()=>setMode("ja2uk");document.getElementById("mode-both").onclick=()=>setMode("both");
+$q.addEventListener("input",debounce(doSearch,120));[$match,$ignoreAccent,$caseFold,$widthFold,$kanaFold,$rmDakuten,$rmChoon,$rmPunct].forEach(el=>el.addEventListener("change",doSearch));$clear.addEventListener("click",()=>$q.value="");$clear.addEventListener("click",()=>{doSearch();$q.focus()});$more.addEventListener("click",()=>{PAGE+=1;requestSearch(true)});
+Promise.all([fetch("config.json",{cache:"no-store"}).then(r=>r.json()),fetch("datasets-manifest.json",{cache:"no-store"}).then(r=>r.json()).catch(()=>({datasets:[]}))]).then(async([cfg,man])=>{CFG=cfg;MAN=man;renderFileChecks(CFG.files);const enabledIdx=enabledFileIndices();const datasets=await loadDatasets(enabledIdx);worker.postMessage({type:"initRows",rows:datasets.rows});$rowCount.textContent=datasets.rows.length.toLocaleString()}).catch(err=>{$status.textContent="設定読込エラー: "+err.message});
+function renderFileChecks(files){$fileChecks.innerHTML="";files.forEach((f,i)=>{const id="f"+i;const label=f.label||(f.json||f.csv);const span=document.createElement("span");span.className="filechk";span.innerHTML=`<input type="checkbox" id="${id}" data-index="${i}" checked><label for="${id}">${label}</label>`;$fileChecks.appendChild(span)});$fileChecks.querySelectorAll("input").forEach(inp=>{inp.addEventListener("change",async()=>{$status.textContent="データ再読込…";const enabledIdx=enabledFileIndices();const datasets=await loadDatasets(enabledIdx);worker.postMessage({type:"initRows",rows:datasets.rows});$rowCount.textContent=datasets.rows.length.toLocaleString();$status.textContent="準備完了";doSearch()})})}
+async function loadDatasets(indices){let allRows=[];for(const i of indices){const f=CFG.files[i];const man=(MAN.datasets||[]).find(d=>d.path===f.json);const ver=man?.version||"noversion";const cacheKey=`ds:${f.json}:${ver}`;let rows=await idbGet(cacheKey);if(!rows){let ok=false;if(f.json){try{const arr=await fetch(f.json,{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject(new Error("JSONなし")));rows=arr;ok=true}catch{}}if(!ok&&f.csv){const txt=await fetch(f.csv,{cache:"no-store"}).then(r=>r.text());const delim = txt.count("\t")>0 ? "\t" : ",";rows=txt.replace(/\r\n?/g,"\n").split("\n").filter(Boolean).map(line=>{const cols=line.split(delim);while(cols.length<3)cols.push("");const src=cols[f.src_col||0]||"";const dst=cols[f.dst_col||2]||"";const uk = f.direction==="ja2uk"?dst:src;const ja = f.direction==="ja2uk"?src:dst;return {uk,ja,src:(f.label||f.csv)}})}try{await idbSet(cacheKey,rows)}catch{}}allRows=allRows.concat(rows.map(r=>({uk:r.uk||"",ja:r.ja||"",src:r.src||(f.label||"")})))}return{rows:allRows}}
+function doSearch(){PAGE=0;requestSearch(false)}
+function currentOptions(){return{ignoreAccent:$ignoreAccent.checked,caseFold:$caseFold.checked,widthFold:$widthFold.checked,kanaFold:$kanaFold.checked,rmDakuten:$rmDakuten.checked,rmChoon:$rmChoon.checked,rmPunct:$rmPunct.checked}}
+function requestSearch(append){worker.postMessage({type:"search",query:$q.value.trim(),how:$match.value,mode:MODE,opt:currentOptions(),page:PAGE,pageSize:(CFG.page_size||200)})}
+function renderPage(append){const rows=LAST_RESULT?LAST_RESULT.rows:[];if(!append)$tbody.innerHTML="";const esc=s=>(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;");rows.forEach(r=>{const tr=document.createElement("tr");tr.innerHTML=`<td>${esc(r.uk)}</td><td>${esc(r.ja)}</td><td>${esc(r.src)}</td>`;$tbody.appendChild(tr)});$footnote.textContent=LAST_RESULT?.note||""}
+</script>
+<!-- injected by assistant: dataset defaults + toggle-all + default match -->
+<script>
+(function (){
+  function ready(fn){
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
+    else fn();
+}
 }
 function isAllChecked(){
   const boxes=$fileChecks.querySelectorAll("input[type=checkbox]");
@@ -209,6 +215,12 @@ function enabledFileIndices(){
          .filter(b=>b.checked)
          .map(b=>parseInt(b.dataset.index));
 }
+  ready(function(){
+    // ① 既定の一致方法を「前方一致」に
+    try {
+      var matchSel = document.getElementById("match");
+      if (matchSel) matchSel.value = "starts";
+    } catch(e){}
 
 // ------------------ ダミー実装（必要に応じて差し替え） ------------------
 async function loadDatasets(indices){
@@ -220,12 +232,63 @@ function doSearch(){
   $hitCount.textContent="0";
   $dispCount.textContent="0";
 }
+    // ③ 「全選択/全解除」ボタンを追加
+    try {
+      var fileChecksContainer = document.getElementById("fileChecks");
+      if (fileChecksContainer && !document.getElementById("toggleAll")) {
+        var btn = document.createElement("button");
+        btn.id = "toggleAll";
+        btn.type = "button";
+        btn.textContent = "全選択/全解除";
+        if (fileChecksContainer.parentNode) {
+          fileChecksContainer.parentNode.insertBefore(btn, fileChecksContainer);
+        } else {
+          fileChecksContainer.before(btn);
+        }
+        btn.addEventListener("click", function(){
+          var boxes = fileChecksContainer.querySelectorAll('input[type="checkbox"]');
+          if (!boxes.length) return;
+          var allOn = Array.from(boxes).every(function(b){ return b.checked; });
+          boxes.forEach(function(b){
+            b.checked = !allOn;
+            b.dispatchEvent(new Event("change"));
+          });
+        });
+      }
+    } catch(e){}
 
 // クリアボタン
 document.getElementById("clearBtn").addEventListener("click",()=>{
   $q.value="";
   doSearch();
 });
+    // ② 初回のみ「ukr-jap.csv」だけON（他はOFF）
+    try {
+      var FLAG_KEY = "init_dataset_ukr_jap_only_done";
+      if (!localStorage.getItem(FLAG_KEY)) {
+        var cont = document.getElementById("fileChecks");
+        if (cont) {
+          var boxes = cont.querySelectorAll('input[type="checkbox"]');
+          if (boxes.length) {
+            var found = false;
+            boxes.forEach(function(b){
+              var text = "";
+              var label = b.id ? document.querySelector('label[for="'+b.id+'"]') : null;
+              if (label) text = (label.textContent || "").trim();
+              var fname = (b.getAttribute("data-filename") || b.value || "").toString();
+              var shouldOn = /(^|[\/\s])ukr-jap\.csv($|\s)/i.test(text) || /ukr-jap\.csv$/i.test(fname);
+              if (shouldOn) found = true;
+              b.checked = shouldOn;
+            });
+            boxes.forEach(function(b){ b.dispatchEvent(new Event("change")); });
+            localStorage.setItem(FLAG_KEY, "1");
+          }
+        }
+      }
+    } catch(e){}
+  });
+})();
 </script>
 </body>
 </html>
+</body></html>
