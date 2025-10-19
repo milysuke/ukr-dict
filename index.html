@@ -1,26 +1,7 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<title>ウクライナ語日本語・日本語ウクライナ語辞典（IndexedDB + Worker）</title>
 <!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ウクライナ語日本語・日本語ウクライナ語辞典（GitHub Pages）</title>
 <style>
-body { background:#222; color:#eee; font-family:sans-serif; }
-input,select,button { margin:4px; }
-#results { margin-top:1em; border-collapse:collapse; width:100%; }
-#results th,#results td { border:1px solid #555; padding:4px; }
-.pill { display:inline-block; background:#444; padding:4px 8px; border-radius:6px; margin:2px; }
-.filechk { margin-right:8px; }
-</style>
-</head>
-<body>
-<h2>ウクライナ語日本語・日本語ウクライナ語辞典（IndexedDB + Worker）</h2>
-
-<div>
-  <input id="q" placeholder="検索語を入力…" style="width:60%;">
-  <button id="clearBtn">クリア</button>
 :root{--bg:#fff;--fg:#111;--muted:#666;--border:#ddd;--card:#fafafa;--accent:#0b73ec}
 [data-theme="dark"]{--bg:#0b0f14;--fg:#e6e6e6;--muted:#9aa4af;--border:#2a3441;--card:#121821;--accent:#4aa3ff}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif}
@@ -72,101 +53,13 @@ tr:nth-child(even){background:rgba(127,127,127,0.04)}
   <div class="row"><span class="pill">データセット: <span id="fileChecks"></span></span></div>
   <div class="row muted">行数: <span id="rowCount">-</span> ／ ヒット: <span id="hitCount">0</span> ／ 表示: <span id="shownCount">0</span> <span class="badge" id="status">準備中…</span></div>
 </div>
-
-<div>
-  <select id="match">
-    <option value="contains">部分一致</option>
-    <option value="starts" selected>前方一致</option>
-    <option value="exact">完全一致</option>
-    <option value="regex">正規表現</option>
-  </select>
-  <label><input type="checkbox" id="ignoreAccent" checked> アクセント無視 (U+0301)</label>
-  <label><input type="checkbox" id="ignoreCase" checked> 大文字/小文字 無視</label>
-  <label><input type="checkbox" id="normalizeWidth" checked> 全角/半角 正規化</label>
-  <label><input type="checkbox" id="kata2hira" checked> カタカナ→ひらがな</label>
-  <label><input type="checkbox" id="ignoreVoicing"> 濁点/半濁点 除去</label>
-  <label><input type="checkbox" id="ignoreLongVowel"> 長音「ー」除去</label>
-  <label><input type="checkbox" id="ignorePunct"> 約物・句読点 除去</label>
 <div class="spacer"></div>
 <div class="card">
   <table id="tbl"><thead><tr><th style="width:38%">ウクライナ語</th><th style="width:38%">日本語</th><th>ソース</th></tr></thead><tbody id="tbody"></tbody></table>
   <div class="footer"><button id="more" class="hidden">次のページ</button><span class="muted" id="footnote"></span></div>
 </div>
-
-<div>
-  <button id="modeUKJA">UK→JA</button>
-  <button id="modeJAUK">JA→UK</button>
-  <button id="modeBoth">両方向</button>
 </div>
-
-<div class="row">
-  <span class="pill">データセット:
-    <button id="toggleAll" type="button">全選択/全解除</button>
-    <span id="fileChecks"></span>
-  </span>
-</div>
-
-<div>
-  <span id="status"></span>
-  <span> 行数: <span id="rowCount">-</span> / ヒット: <span id="hitCount">0</span> / 表示: <span id="dispCount">0</span></span>
-</div>
-
-<table id="results">
-  <thead>
-    <tr><th>ウクライナ語</th><th>日本語</th><th>ソース</th></tr>
-  </thead>
-  <tbody id="tbody"></tbody>
-</table>
-
 <script type="module">
-// ====================== 既存コードの設定部分 ======================
-const $q=document.getElementById("q");
-const $match=document.getElementById("match");
-const $fileChecks=document.getElementById("fileChecks");
-const $status=document.getElementById("status");
-const $rowCount=document.getElementById("rowCount");
-const $hitCount=document.getElementById("hitCount");
-const $dispCount=document.getElementById("dispCount");
-const $tbody=document.getElementById("tbody");
-
-let worker=new Worker("worker.js");
-let datasets=[];
-
-// config.jsonを取得
-const config=await fetch("config.json").then(r=>r.json());
-renderFileChecks(config.files);
-
-// ------------------ データセットチェックボックス生成 ------------------
-function renderFileChecks(files){
-  $fileChecks.innerHTML="";
-  files.forEach((f,i)=>{
-    const id="f"+i;
-    const label=f.label||(f.json||f.csv);
-    // ★初期状態：ukr-jap.csvのみON
-    const checked=(f.csv==="ukr-jap.csv");
-    const span=document.createElement("span");
-    span.className="filechk";
-    span.innerHTML=`
-      <input type="checkbox" id="${id}" data-index="${i}" ${checked?"checked":""}>
-      <label for="${id}">${label}</label>
-    `;
-    $fileChecks.appendChild(span);
-  });
-
-  // 個別変更時
-  $fileChecks.querySelectorAll("input").forEach(inp=>{
-    inp.addEventListener("change", async ()=>{ await reloadDatasetsAndSearch(); });
-  });
-
-  // 全選択/全解除ボタン
-  const $toggle=document.getElementById("toggleAll");
-  if($toggle && !$toggle._bound){
-    $toggle._bound=true;
-    $toggle.addEventListener("click", async ()=>{
-      const allOn=isAllChecked();
-      setAllChecked(!allOn);
-      await reloadDatasetsAndSearch();
-    });
 import { idbGet, idbSet } from "./idb.js";
 const savedTheme=localStorage.getItem("theme"); if(savedTheme) document.documentElement.setAttribute("data-theme", savedTheme);
 document.getElementById("themeBtn").addEventListener("click",()=>{const cur=document.documentElement.getAttribute("data-theme");const next=cur==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",next);localStorage.setItem("theme",next)});
@@ -185,110 +78,4 @@ function doSearch(){PAGE=0;requestSearch(false)}
 function currentOptions(){return{ignoreAccent:$ignoreAccent.checked,caseFold:$caseFold.checked,widthFold:$widthFold.checked,kanaFold:$kanaFold.checked,rmDakuten:$rmDakuten.checked,rmChoon:$rmChoon.checked,rmPunct:$rmPunct.checked}}
 function requestSearch(append){worker.postMessage({type:"search",query:$q.value.trim(),how:$match.value,mode:MODE,opt:currentOptions(),page:PAGE,pageSize:(CFG.page_size||200)})}
 function renderPage(append){const rows=LAST_RESULT?LAST_RESULT.rows:[];if(!append)$tbody.innerHTML="";const esc=s=>(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;");rows.forEach(r=>{const tr=document.createElement("tr");tr.innerHTML=`<td>${esc(r.uk)}</td><td>${esc(r.ja)}</td><td>${esc(r.src)}</td>`;$tbody.appendChild(tr)});$footnote.textContent=LAST_RESULT?.note||""}
-</script>
-<!-- injected by assistant: dataset defaults + toggle-all + default match -->
-<script>
-(function (){
-  function ready(fn){
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
-    else fn();
-}
-}
-function isAllChecked(){
-  const boxes=$fileChecks.querySelectorAll("input[type=checkbox]");
-  return boxes.length>0 && [...boxes].every(b=>b.checked);
-}
-function setAllChecked(v){
-  $fileChecks.querySelectorAll("input[type=checkbox]").forEach(b=>b.checked=v);
-}
-async function reloadDatasetsAndSearch(){
-  $status.textContent="データ再読込…";
-  const enabledIdx=enabledFileIndices();
-  const rows=await loadDatasets(enabledIdx);
-  worker.postMessage({type:"initRows", rows});
-  $rowCount.textContent=rows.length.toLocaleString();
-  $status.textContent="準備完了";
-  doSearch();
-}
-function enabledFileIndices(){
-  return [...$fileChecks.querySelectorAll("input[type=checkbox]")]
-         .filter(b=>b.checked)
-         .map(b=>parseInt(b.dataset.index));
-}
-  ready(function(){
-    // ① 既定の一致方法を「前方一致」に
-    try {
-      var matchSel = document.getElementById("match");
-      if (matchSel) matchSel.value = "starts";
-    } catch(e){}
-
-// ------------------ ダミー実装（必要に応じて差し替え） ------------------
-async function loadDatasets(indices){
-  // 本来はIndexedDBやfetchでロード
-  return [];
-}
-function doSearch(){
-  // 本来は検索処理
-  $hitCount.textContent="0";
-  $dispCount.textContent="0";
-}
-    // ③ 「全選択/全解除」ボタンを追加
-    try {
-      var fileChecksContainer = document.getElementById("fileChecks");
-      if (fileChecksContainer && !document.getElementById("toggleAll")) {
-        var btn = document.createElement("button");
-        btn.id = "toggleAll";
-        btn.type = "button";
-        btn.textContent = "全選択/全解除";
-        if (fileChecksContainer.parentNode) {
-          fileChecksContainer.parentNode.insertBefore(btn, fileChecksContainer);
-        } else {
-          fileChecksContainer.before(btn);
-        }
-        btn.addEventListener("click", function(){
-          var boxes = fileChecksContainer.querySelectorAll('input[type="checkbox"]');
-          if (!boxes.length) return;
-          var allOn = Array.from(boxes).every(function(b){ return b.checked; });
-          boxes.forEach(function(b){
-            b.checked = !allOn;
-            b.dispatchEvent(new Event("change"));
-          });
-        });
-      }
-    } catch(e){}
-
-// クリアボタン
-document.getElementById("clearBtn").addEventListener("click",()=>{
-  $q.value="";
-  doSearch();
-});
-    // ② 初回のみ「ukr-jap.csv」だけON（他はOFF）
-    try {
-      var FLAG_KEY = "init_dataset_ukr_jap_only_done";
-      if (!localStorage.getItem(FLAG_KEY)) {
-        var cont = document.getElementById("fileChecks");
-        if (cont) {
-          var boxes = cont.querySelectorAll('input[type="checkbox"]');
-          if (boxes.length) {
-            var found = false;
-            boxes.forEach(function(b){
-              var text = "";
-              var label = b.id ? document.querySelector('label[for="'+b.id+'"]') : null;
-              if (label) text = (label.textContent || "").trim();
-              var fname = (b.getAttribute("data-filename") || b.value || "").toString();
-              var shouldOn = /(^|[\/\s])ukr-jap\.csv($|\s)/i.test(text) || /ukr-jap\.csv$/i.test(fname);
-              if (shouldOn) found = true;
-              b.checked = shouldOn;
-            });
-            boxes.forEach(function(b){ b.dispatchEvent(new Event("change")); });
-            localStorage.setItem(FLAG_KEY, "1");
-          }
-        }
-      }
-    } catch(e){}
-  });
-})();
-</script>
-</body>
-</html>
-</body></html>
+</script></body></html>
