@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif&display=swap" rel="stylesheet">
 
 <style>
-:root{--bg:#0b0f14;--fg:#e6e6e6;--muted:#9aa4af;--border:#2a3441;--card:#121821;--accent:#4aa3ff}
+:root{--bg:#0b0f14;--fg:#e6e6e6;--muted:#9aa4af;--border:#2a3441;--card:#121821;--accent:#4aa3ff;--danger:#ff4a4a}
 /* ▼ 変更：Noto Serif を先頭に追加（それ以外は元のまま） */
 html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
   font-family:'Noto Serif', system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,
@@ -22,7 +22,8 @@ h1{font-size:20px;margin:0 0 12px}
 .seg button{border:none;background:transparent;padding:8px 12px;cursor:pointer;color:var(--fg)}
 .seg button.active{background:var(--accent);color:#fff}
 input[type="text"]{flex:1;min-width:200px;border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:var(--bg);color:var(--fg)}
-select,button{border:1px solid var(--border);border-radius:12px;padding:8px 10px;background:var(--card);color:var(--fg)}
+select,button{border:1px solid var(--border);border-radius:12px;padding:8px 10px;background:var(--card);color:var(--fg);cursor:pointer}
+button:hover{background:var(--accent);color:#fff}
 .pill{border:1px solid var(--border);border-radius:999px;padding:6px 10px}
 .muted{color:var(--muted);font-size:12px}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px}
@@ -34,6 +35,8 @@ tr:nth-child(even){background:rgba(127,127,127,.06)}
 .badge{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:999px;font-size:12px;margin-left:8px;background:var(--card)}
 .select-buttons{display:inline-flex;gap:6px;margin-left:12px}
 .select-buttons button{padding:6px 10px;font-size:12px}
+.cache-button{padding:6px 12px;font-size:12px;background:var(--danger);color:#fff;border-color:var(--danger);margin-left:auto}
+.cache-button:hover{background:#ff6666;border-color:#ff6666}
 .hidden{display:none}
 </style>
 </head>
@@ -50,6 +53,7 @@ tr:nth-child(even){background:rgba(127,127,127,.06)}
         <button id="mode-ja2uk" data-mode="ja2uk">JA→UK</button>
         <button id="mode-both"  data-mode="both">両方向</button>
       </div>
+      <button id="btnClearCache" class="cache-button" title="キャッシュをクリアして最新データを読み込む">キャッシュをクリア</button>
     </div>
 
     <div class="row">
@@ -98,7 +102,7 @@ tr:nth-child(even){background:rgba(127,127,127,.06)}
 
 <script type="module">
 /* =======================================================================
-   JSON対応・完全版（フォント以外は元のまま）
+   JSON対応・完全版（キャッシュクリア機能追加）
    ======================================================================= */
 
 const $q = document.getElementById('q');
@@ -111,6 +115,65 @@ let currentMode = 'uk2ja';  // uk2ja | ja2uk | both
 let filesState = [];        // [{json, csv, label, checked}]
 let loadedCache = new Map();// url -> [{src, dst, source}]
 let allRows = [];
+
+// --- IndexedDBヘルパー関数 ---
+async function clearIndexedDB() {
+  try {
+    // IndexedDBのデータベース一覧を取得
+    const databases = await indexedDB.databases?.() || [];
+    for (const db of databases) {
+      if (db.name) {
+        await indexedDB.deleteDatabase(db.name);
+        console.log('IndexedDB cleared:', db.name);
+      }
+    }
+  } catch (e) {
+    // databases() APIがサポートされていない場合の代替処理
+    console.log('Attempting to clear known databases...');
+    try {
+      // 既知のデータベース名をクリア
+      await indexedDB.deleteDatabase('dict-cache');
+      await indexedDB.deleteDatabase('datasets');
+      await indexedDB.deleteDatabase('dictionary');
+    } catch (err) {
+      console.warn('IndexedDB clear error:', err);
+    }
+  }
+}
+
+// --- キャッシュクリアボタン ---
+document.getElementById('btnClearCache').addEventListener('click', async ()=>{
+  const confirm = window.confirm('キャッシュをクリアして最新データを読み込みます。\nよろしいですか？');
+  if (!confirm) return;
+  
+  setStatus('キャッシュクリア中…');
+  
+  // メモリキャッシュをクリア
+  loadedCache.clear();
+  
+  // IndexedDBをクリア
+  await clearIndexedDB();
+  
+  // LocalStorageのキャッシュ関連項目をクリア（必要に応じて）
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (key.includes('cache') || key.includes('dataset'))) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(key => localStorage.removeItem(key));
+  
+  // SessionStorageもクリア
+  sessionStorage.clear();
+  
+  setStatus('キャッシュクリア完了、リロード中…');
+  
+  // 強制リロード（ハードリロード）
+  setTimeout(() => {
+    window.location.reload(true);
+  }, 500);
+});
 
 // --- モード切り替え ---
 for (const id of ['mode-uk2ja','mode-ja2uk','mode-both']) {
@@ -193,7 +256,10 @@ function guessDirByName(name){
 async function loadOne(url, sourceLabel){
   if (loadedCache.has(url)) return loadedCache.get(url);
   try{
-    const r = await fetch(url, {cache:'no-store'});
+    // キャッシュを無効化して最新データを取得
+    const timestamp = new Date().getTime();
+    const urlWithTimestamp = url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
+    const r = await fetch(urlWithTimestamp, {cache:'no-store'});
     if (!r.ok) throw new Error('HTTP '+r.status);
     const ct = r.headers.get('content-type')||'';
     if (ct.includes('application/json') || url.endsWith('.json')) {
@@ -209,7 +275,9 @@ async function loadOne(url, sourceLabel){
     }
   }catch(e){
     try{
-      const r2 = await fetch(url, {cache:'no-store'});
+      const timestamp = new Date().getTime();
+      const urlWithTimestamp = url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
+      const r2 = await fetch(urlWithTimestamp, {cache:'no-store'});
       const txt = await r2.text();
       const rows = csvTextToPairs(txt, sourceLabel);
       loadedCache.set(url, rows);
