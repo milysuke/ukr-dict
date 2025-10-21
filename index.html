@@ -76,6 +76,8 @@ tr:nth-child(even){background:rgba(127,127,127,.06)}
         <span class="select-buttons">
           <button id="selectAll">すべて選択</button>
           <button id="deselectAll">すべて解除</button>
+          <!-- ▼ 追加：キャッシュをクリア -->
+          <button id="cacheClear" title="保存データを削除して最新を取得">キャッシュをクリア</button>
         </span>
         <span class="badge" id="status">準備中…</span>
       </span>
@@ -385,6 +387,48 @@ async function runSearch(){
 document.addEventListener('DOMContentLoaded', ()=>{
   loadDatasetsAndRender().then(()=> runSearch());
 });
+
+/* ▼▼▼ ここから最小追加：キャッシュクリア機能 ▼▼▼ */
+async function clearSiteData() {
+  const setStatus = (t)=>{ const el=document.getElementById('status'); if(el) el.textContent=t; };
+  setStatus('キャッシュ削除中…');
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister().catch(()=>{})));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k).catch(()=>{})));
+    }
+    if (indexedDB && typeof indexedDB.deleteDatabase === 'function') {
+      if (indexedDB.databases) {
+        const dbs = await indexedDB.databases();
+        await Promise.all(
+          dbs.filter(db => db && db.name)
+             .map(db => new Promise((res)=>{ const req = indexedDB.deleteDatabase(db.name); req.onsuccess=req.onerror=req.onblocked=()=>res(); }))
+        );
+      }
+    }
+    try { localStorage.clear(); } catch {}
+    try { sessionStorage.clear(); } catch {}
+    const url = new URL(location.href);
+    url.searchParams.set('v', Date.now().toString());
+    setStatus('キャッシュ削除完了。再読み込みします…');
+    location.replace(url.toString());
+  } catch (e) {
+    console.error('[clearSiteData]', e);
+    alert('キャッシュ削除でエラーが発生しました。手動でハードリロードしてください。');
+    setStatus('キャッシュ削除エラー');
+  }
+}
+document.getElementById('cacheClear')?.addEventListener('click', () => {
+  if (confirm('保存済みデータを削除して最新を取得します。よろしいですか？')) {
+    clearSiteData();
+  }
+});
+/* ▲▲▲ 最小追加：ここまで ▲▲▲ */
+
 </script>
 </body>
 </html>
