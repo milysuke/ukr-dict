@@ -1,414 +1,112 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ウクライナ語日本語・日本語ウクライナ語辞典（IndexedDB + Worker 風・JSON対応）</title>
-<style>
-:root{--bg:#0b0f14;--fg:#e6e6e6;--muted:#9aa4af;--border:#2a3441;--card:#121821;--accent:#4aa3ff}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif}
-.wrap{max-width:1100px;margin:20px auto;padding:0 16px}
-h1{font-size:20px;margin:0 0 12px}
-.toolbar{display:grid;gap:10px}
-.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.seg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden}
-.seg button{border:none;background:transparent;padding:8px 12px;cursor:pointer;color:var(--fg)}
-.seg button.active{background:var(--accent);color:#fff}
-input[type="text"]{flex:1;min-width:200px;border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:var(--bg);color:var(--fg)}
-select,button{border:1px solid var(--border);border-radius:12px;padding:8px 10px;background:var(--card);color:var(--fg)}
-.pill{border:1px solid var(--border);border-radius:999px;padding:6px 10px}
-.muted{color:var(--muted);font-size:12px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px}
-table{width:100%;border-collapse:collapse;margin-top:10px}
-th,td{border:1px solid var(--border);padding:8px;vertical-align:top}
-th{background:var(--card);text-align:left}
-tr:nth-child(even){background:rgba(127,127,127,.06)}
-.filechk{display:inline-flex;gap:6px;align-items:center;margin-right:10px;margin-bottom:6px}
-.badge{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:999px;font-size:12px;margin-left:8px;background:var(--card)}
-.select-buttons{display:inline-flex;gap:6px;margin-left:12px}
-.select-buttons button{padding:6px 10px;font-size:12px}
-.hidden{display:none}
-</style>
+  <meta charset="UTF-8">
+  <title>ウクライナ語日本語・日本語ウクライナ語辞典（IndexedDB + Worker）</title>
+
+  <!-- ✅ Google Fonts 読み込み -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Noto Serif', 'Noto Sans', 'DejaVu Sans', serif;
+      background-color: #1e1e1e;
+      color: #f0f0f0;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      text-align: center;
+      padding: 20px;
+    }
+
+    /* ✅ アクセント記号が母音の上に重なるように */
+    .dictionary-entry,
+    .dictionary-table,
+    .dictionary-table td,
+    .dictionary-table th {
+      font-family: 'Noto Serif', 'Noto Sans', 'DejaVu Sans', serif;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .dictionary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .dictionary-table th,
+    .dictionary-table td {
+      border: 1px solid #666;
+      padding: 6px 10px;
+      text-align: left;
+    }
+    .dictionary-table th {
+      background: #333;
+    }
+
+    .controls {
+      margin: 10px;
+      padding: 10px;
+      background: #2c2c2c;
+      border-radius: 8px;
+    }
+    select, button, input[type="checkbox"] {
+      margin: 3px;
+      padding: 5px;
+    }
+  </style>
 </head>
 <body>
-<div class="wrap">
   <h1>ウクライナ語日本語・日本語ウクライナ語辞典（IndexedDB + Worker）</h1>
 
-  <div class="toolbar card">
-    <div class="row">
-      <input id="q" type="text" placeholder="検索語（例：кота / りんご / ニェタ）" />
-      <button id="btnClear">クリア</button>
-      <div class="seg" role="tablist" aria-label="検索方向">
-        <button id="mode-uk2ja" class="active" data-mode="uk2ja">UK→JA</button>
-        <button id="mode-ja2uk" data-mode="ja2uk">JA→UK</button>
-        <button id="mode-both"  data-mode="both">両方向</button>
-      </div>
-    </div>
-
-    <div class="row">
-      <span class="pill">一致方法:
-        <select id="match">
-          <option value="contains">部分一致</option>
-          <option value="starts" selected>前方一致</option>
+  <div class="controls">
+    <input type="text" id="searchBox" placeholder="検索語（例：koca / りんご / ニェタ）">
+    <button id="clearBtn">クリア</button>
+    <div>
+      <label>一致方法:
+        <select id="matchMethod">
+          <option value="prefix">前方一致</option>
+          <option value="partial">部分一致</option>
           <option value="exact">完全一致</option>
-          <option value="regex">正規表現</option>
         </select>
-      </span>
-      <label class="pill"><input type="checkbox" id="ignoreAccent" checked /> アクセント無視（U+0301）</label>
-      <label class="pill"><input type="checkbox" id="caseFold" checked /> 大文字/小文字 無視</label>
-      <label class="pill"><input type="checkbox" id="widthFold" checked /> 全角/半角 正規化</label>
-      <label class="pill"><input type="checkbox" id="kanaFold" checked /> カタカナ→ひらがな</label>
-      <label class="pill"><input type="checkbox" id="rmDakuten" /> 濁点/半濁点 除去</label>
-      <label class="pill"><input type="checkbox" id="rmChoon" /> 長音「ー」 除去</label>
-      <label class="pill"><input type="checkbox" id="rmPunct" /> 約物・句読点 除去</label>
+      </label>
     </div>
-
-    <div class="row">
-      <span class="pill">データセット:
-        <span id="fileChecks"></span>
-        <span class="select-buttons">
-          <button id="selectAll">すべて選択</button>
-          <button id="deselectAll">すべて解除</button>
-        </span>
-        <span class="badge" id="status">準備中…</span>
-      </span>
+    <div>
+      <label><input type="checkbox" id="ignoreAccent" checked> アクセント無視 (U+0301)</label>
+      <label><input type="checkbox" id="ignoreCase" checked> 大文字/小文字 無視</label>
+      <label><input type="checkbox" id="normalizeWidth" checked> 全角/半角 正規化</label>
+      <label><input type="checkbox" id="katakanaToHiragana" checked> カタカナ→ひらがな</label>
+      <label><input type="checkbox" id="removeMarks"> 濁点/半濁点 除去</label>
+      <label><input type="checkbox" id="removeChoon"> 長音「ー」除去</label>
+      <label><input type="checkbox" id="removeParticles"> 約物・句読点 除去</label>
     </div>
-
-    <div class="row muted">
-      行数: <span id="rowCount">-</span> ｜ ヒット: <span id="hitCount">0</span> ｜ 表示: <span id="shownCount">0</span>
+    <div>
+      <button id="dirUkJa">UK→JA</button>
+      <button id="dirJaUk">JA→UK</button>
+      <button id="dirBoth">両方向</button>
     </div>
+    <div>
+      <span>データセット:</span>
+      <button id="selectAll">すべて選択</button>
+      <button id="deselectAll">すべて解除</button>
+      <div id="datasets"></div>
+    </div>
+    <div id="status">行数: - / ヒット: 0 / 表示: 0 / 準備中...</div>
   </div>
 
-  <div class="card" style="margin-top:10px">
-    <table>
-      <thead>
-        <tr><th style="width:38%">ウクライナ語</th><th style="width:38%">日本語</th><th>ソース</th></tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </div>
-</div>
+  <table class="dictionary-table">
+    <thead>
+      <tr>
+        <th>ウクライナ語</th>
+        <th>日本語</th>
+        <th>ソース</th>
+      </tr>
+    </thead>
+    <tbody id="results"></tbody>
+  </table>
 
-<script type="module">
-/* =======================================================================
-   JSON対応・完全版
-   1) datasets-manifest.json を読み込み（失敗時は固定一覧にフォールバック）
-   2) JSON を優先して取得（オブジェクト/配列/CSV文字列 どれでもOK）
-   3) UK→JA / JA→UK / 両方向 の各モードで検索
-   ======================================================================= */
-
-const $q = document.getElementById('q');
-const $tbody = document.getElementById('tbody');
-const $fileChecks = document.getElementById('fileChecks');
-const $status = document.getElementById('status');
-const $row = id => document.getElementById(id);
-
-let currentMode = 'uk2ja';  // uk2ja | ja2uk | both
-let filesState = [];        // [{json, csv, label, checked}]
-let loadedCache = new Map();// url -> [{src, dst, source}]
-let allRows = [];           // 正規化済みも保持するならここに
-
-// ---------- UI: モード切り替え ----------
-for (const id of ['mode-uk2ja','mode-ja2uk','mode-both']) {
-  document.getElementById(id).addEventListener('click', (e)=>{
-    document.querySelectorAll('.seg button').forEach(b=>b.classList.remove('active'));
-    e.currentTarget.classList.add('active');
-    currentMode = e.currentTarget.dataset.mode;
-    runSearch();
-  });
-}
-
-// ---------- UI: すべて選択/解除 ----------
-document.getElementById('selectAll').addEventListener('click', ()=>{
-  $fileChecks.querySelectorAll('input[type=checkbox]').forEach(ch=> ch.checked = true);
-  runSearch();
-});
-document.getElementById('deselectAll').addEventListener('click', ()=>{
-  $fileChecks.querySelectorAll('input[type=checkbox]').forEach(ch=> ch.checked = false);
-  runSearch();
-});
-
-// ---------- UI: 入力 ----------
-$q.addEventListener('keydown', e=>{
-  if (e.key === 'Enter') runSearch();
-});
-document.getElementById('btnClear').addEventListener('click', ()=>{
-  $q.value = ''; runSearch(); $q.focus();
-});
-
-// ---------- 状態表示 ----------
-function setStatus(t){ if($status) $status.textContent = t; }
-function setCounts(total, hits, shown){
-  $row('rowCount').textContent = String(total);
-  $row('hitCount').textContent = String(hits);
-  $row('shownCount').textContent = String(shown);
-}
-
-// ---------- 正規化 ----------
-function toNFKC(s){ try{ return s.normalize('NFKC'); }catch{ return s; } }
-function removeAccent(s){ return s.replace(/\u0301/g,''); } // combining acute
-function toHiragana(s){
-  return s.replace(/[\u30A1-\u30F6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
-}
-function stripDakutenAndChoon(s){
-  // NFD分解して結合記号(濁点U+3099/半濁点U+309A)と長音(U+30FC)を消す→NFC
-  try{
-    const nfd = s.normalize('NFD').replace(/[\u3099\u309A]/g,'').replace(/\u30FC/g,'');
-    return nfd.normalize('NFC');
-  }catch{ return s.replace(/\u30FC/g,''); }
-}
-function stripPunct(s){
-  // 文字・数字・空白 以外を除去
-  return s.replace(/[^\p{L}\p{N}\s]/gu,'');
-}
-function normalize(s){
-  if (!s) return '';
-  const opts = {
-    ignoreAccent: document.getElementById('ignoreAccent').checked,
-    caseFold:     document.getElementById('caseFold').checked,
-    widthFold:    document.getElementById('widthFold').checked,
-    kanaFold:     document.getElementById('kanaFold').checked,
-    rmDakuten:    document.getElementById('rmDakuten').checked,
-    rmChoon:      document.getElementById('rmChoon').checked,
-    rmPunct:      document.getElementById('rmPunct').checked,
-  };
-  let t = s;
-  if (opts.widthFold) t = toNFKC(t);
-  if (opts.caseFold)  t = t.toLocaleLowerCase('ja');
-  if (opts.ignoreAccent) t = removeAccent(t);
-  if (opts.kanaFold) t = toHiragana(t);
-  if (opts.rmDakuten || opts.rmChoon) t = stripDakutenAndChoon(t);
-  if (opts.rmPunct) t = stripPunct(t);
-  return t;
-}
-
-// ---------- データセット読み込み ----------
-function guessDirByName(name){
-  const n = name.toLowerCase();
-  if (n.includes('ukr-jap')) return 'uk2ja';
-  if (n.includes('jap-ukr')) return 'ja2uk';
-  return 'both';
-}
-
-async function loadOne(url, sourceLabel){
-  if (loadedCache.has(url)) return loadedCache.get(url);
-
-  // 1) JSONとして読む
-  try{
-    const r = await fetch(url, {cache:'no-store'});
-    if (!r.ok) throw new Error('HTTP '+r.status);
-    // JSONかテキストか判定
-    const ct = r.headers.get('content-type')||'';
-    if (ct.includes('application/json') || url.endsWith('.json')) {
-      const j = await r.json();
-      const rows = convertAnyToPairs(j, sourceLabel);
-      loadedCache.set(url, rows);
-      return rows;
-    } else {
-      const txt = await r.text();
-      const rows = csvTextToPairs(txt, sourceLabel);
-      loadedCache.set(url, rows);
-      return rows;
-    }
-  }catch(e){
-    // 2) テキスト→CSVとして再挑戦
-    try{
-      const r2 = await fetch(url, {cache:'no-store'});
-      const txt = await r2.text();
-      const rows = csvTextToPairs(txt, sourceLabel);
-      loadedCache.set(url, rows);
-      return rows;
-    }catch(err){
-      console.error('[loadOne]', url, err);
-      loadedCache.set(url, []);
-      return [];
-    }
-  }
-}
-
-// JSON のどの形でも [{src,dst,source,dir}] に変換
-function convertAnyToPairs(data, sourceLabel){
-  const pairs = [];
-  const dir = guessDirByName(sourceLabel||'');
-  if (Array.isArray(data)){
-    // [{ukr:"", jap:""}] / [{src:"", dst:""}] といった配列
-    for (const r of data){
-      const uk = r.ukr ?? r.UKR ?? r.src ?? r[0];
-      const ja = r.jap ?? r.JA  ?? r.dst ?? r[1];
-      if (uk!=null && ja!=null) pairs.push({src:String(uk), dst:String(ja), source:sourceLabel, dir});
-    }
-  } else if (typeof data === 'object' && data){
-    // { "語":"訳", ... }（今回の形式）
-    for (const [k,v] of Object.entries(data)){
-      pairs.push({src:String(k), dst:String(v), source:sourceLabel, dir});
-    }
-  } else if (typeof data === 'string'){
-    // CSV文字列
-    return csvTextToPairs(data, sourceLabel);
-  }
-  return pairs;
-}
-
-// CSV文字列 → [{src,dst,source,dir}]
-function csvTextToPairs(txt, sourceLabel){
-  const pairs = [];
-  // 区切りはタブ優先、無ければカンマ
-  const delim = txt.includes('\t') ? '\t' : ',';
-  const lines = txt.split(/\r?\n/);
-  const dir = guessDirByName(sourceLabel||'');
-  for (const line of lines){
-    if (!line) continue;
-    const a = line.split(delim);
-    if (a.length < 2) continue;
-    pairs.push({src:a[0], dst:a[1], source:sourceLabel, dir});
-  }
-  return pairs;
-}
-
-// ---------- manifest 読み込み → UI 反映 ----------
-function renderFileChecks(files){
-  $fileChecks.innerHTML = '';
-  const defaults = new Set(['ukr-jap.json','ukr-jap-ad.json']); // 初期ON
-  filesState = files.map((f,i)=>{
-    const filename = f.json || f.csv || '';
-    const label = f.label || (filename.split('/').pop() || filename);
-    const checked = defaults.has(label) || defaults.has(filename.split('/').pop());
-    const id = 'f'+i;
-    const span = document.createElement('span');
-    span.className = 'filechk';
-    span.innerHTML =
-      `<input type="checkbox" id="${id}" data-i="${i}" ${checked?'checked':''}>
-       <label for="${id}">${label}</label>`;
-    $fileChecks.appendChild(span);
-    return {...f, label, checked};
-  });
-
-  $fileChecks.querySelectorAll('input[type=checkbox]').forEach(inp=>{
-    inp.addEventListener('change', ()=>{
-      const idx = Number(inp.getAttribute('data-i'));
-      filesState[idx].checked = inp.checked;
-      runSearch();
-    });
-  });
-}
-
-async function loadDatasetsAndRender(){
-  setStatus('データセット読込中…');
-  try{
-    const res = await fetch('./datasets-manifest.json', {cache:'no-store'});
-    if (!res.ok) throw new Error('manifest http '+res.status);
-    const man = await res.json();
-    const files = (man.datasets||[]).map(d=>{
-      const json = d.path || '';
-      const csv  = d.source || '';
-      const label = (json||csv).split('/').pop();
-      return {json, csv, label};
-    });
-    if (!files.length) throw new Error('manifest empty');
-    renderFileChecks(files);
-    setStatus('準備完了');
-  }catch(e){
-    console.warn('[manifest fallback]', e);
-    const files = [
-      { json:"ukr-jap.json",        csv:"ukr-jap.csv",        label:"ukr-jap.json" },
-      { json:"ukr-jap-ad.json",     csv:"ukr-jap-ad.csv",     label:"ukr-jap-ad.json" },
-      { json:"jap-ukr.json",        csv:"jap-ukr.csv",        label:"jap-ukr.json" },
-      { json:"jap-ukr-lat.json",    csv:"jap-ukr-lat.csv",    label:"jap-ukr-lat.json" },
-      { json:"jap-ukr-yomi.json",   csv:"jap-ukr-yomi.csv",   label:"jap-ukr-yomi.json" },
-      { json:"ukr-acc.json",        csv:"ukr-acc.csv",        label:"ukr-acc.json" },
-      { json:"ukr-frek-pro.json",   csv:"ukr-frek-pro.csv",   label:"ukr-frek-pro.json" },
-      { json:"ukr-frek-rev.json",   csv:"ukr-frek-rev.csv",   label:"ukr-frek-rev.json" },
-      { json:"ukr-henka.json",      csv:"ukr-henka.csv",      label:"ukr-henka.json" },
-      { json:"ukr-jap-lat.json",    csv:"ukr-jap-lat.csv",    label:"ukr-jap-lat.json" },
-      { json:"ukr-jap-ad-lat.json", csv:"ukr-jap-ad-lat.csv", label:"ukr-jap-ad-lat.json" }
-    ];
-    renderFileChecks(files);
-    setStatus('準備完了（フォールバック）');
-  }
-}
-
-// ---------- 検索 ----------
-async function buildActiveRows(){
-  // 選択中のファイルを読み込んで合成
-  const selected = filesState.filter(f=>f.checked);
-  const all = [];
-  for (const f of selected){
-    const url = (f.json && f.json.trim()) ? f.json : (f.csv || '');
-    if (!url) continue;
-    const rows = await loadOne(url, f.label || url);
-    // rows: [{src,dst,source,dir}]
-    // モードに応じて向きを調整して push
-    for (const r of rows){
-      const dir = r.dir || guessDirByName(r.source||'');
-      if (currentMode === 'uk2ja'){
-        // UK→JA を使う。ja2uk の場合は反転して使う
-        if (dir === 'ja2uk') all.push({src:r.dst, dst:r.src, source:r.source});
-        else                 all.push({src:r.src, dst:r.dst, source:r.source});
-      }else if (currentMode === 'ja2uk'){
-        if (dir === 'uk2ja') all.push({src:r.dst, dst:r.src, source:r.source});
-        else                 all.push({src:r.src, dst:r.dst, source:r.source});
-      }else{
-        // both: そのまま＋反転の両方を用意
-        all.push({src:r.src, dst:r.dst, source:r.source});
-        all.push({src:r.dst, dst:r.src, source:r.source});
-      }
-    }
-  }
-  return all;
-}
-
-function matchFunc(mode, queryNorm){
-  const how = document.getElementById('match').value;
-  if (how === 'regex'){
-    let re = null;
-    try { re = new RegExp(queryNorm, 'iu'); } catch{ re = /$^/; }
-    return s => re.test(s);
-  }
-  if (how === 'exact'){
-    return s => s === queryNorm;
-  }
-  if (how === 'starts'){
-    return s => s.startsWith(queryNorm);
-  }
-  // contains
-  return s => s.includes(queryNorm);
-}
-
-async function runSearch(){
-  setStatus('検索中…');
-  const query = $q.value || '';
-  const qn = normalize(query);
-  const all = await buildActiveRows();
-  const total = all.length;
-
-  const m = matchFunc(currentMode, qn);
-  const results = [];
-  for (const r of all){
-    const srcN = normalize(r.src);
-    if (m(srcN)) results.push(r);
-  }
-
-  // 表示（上限200）
-  const MAX = 200;
-  $tbody.innerHTML = '';
-  for (let i=0;i<Math.min(MAX, results.length);i++){
-    const r = results[i];
-    const tr = document.createElement('tr');
-    const td1 = document.createElement('td'); td1.textContent = r.src;
-    const td2 = document.createElement('td'); td2.textContent = r.dst;
-    const td3 = document.createElement('td'); td3.textContent = r.source || '';
-    tr.append(td1, td2, td3);
-    $tbody.appendChild(tr);
-  }
-
-  setCounts(total, results.length, Math.min(MAX, results.length));
-  setStatus('準備完了');
-}
-
-// ---------- 起動 ----------
-document.addEventListener('DOMContentLoaded', ()=>{
-  loadDatasetsAndRender().then(()=> runSearch());
-});
-</script>
+  <script src="idb.js"></script>
+  <script src="main.js"></script>
 </body>
 </html>
