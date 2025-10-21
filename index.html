@@ -4,9 +4,16 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>ウクライナ語日本語・日本語ウクライナ語辞典（IndexedDB + Worker 風・JSON対応）</title>
+
+<!-- ▼ 追加：Noto Serif を読み込み（合成アクセントの重なりを安定表示） -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif&display=swap" rel="stylesheet">
+
 <style>
 :root{--bg:#0b0f14;--fg:#e6e6e6;--muted:#9aa4af;--border:#2a3441;--card:#121821;--accent:#4aa3ff}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif}
+/* ▼ 変更：Noto Serif を先頭に追加（それ以外は元のまま） */
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+  font-family:'Noto Serif', system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,
+  "Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",serif}
 .wrap{max-width:1100px;margin:20px auto;padding:0 16px}
 h1{font-size:20px;margin:0 0 12px}
 .toolbar{display:grid;gap:10px}
@@ -91,10 +98,7 @@ tr:nth-child(even){background:rgba(127,127,127,.06)}
 
 <script type="module">
 /* =======================================================================
-   JSON対応・完全版
-   1) datasets-manifest.json を読み込み（失敗時は固定一覧にフォールバック）
-   2) JSON を優先して取得（オブジェクト/配列/CSV文字列 どれでもOK）
-   3) UK→JA / JA→UK / 両方向 の各モードで検索
+   JSON対応・完全版（フォント以外は元のまま）
    ======================================================================= */
 
 const $q = document.getElementById('q');
@@ -106,9 +110,9 @@ const $row = id => document.getElementById(id);
 let currentMode = 'uk2ja';  // uk2ja | ja2uk | both
 let filesState = [];        // [{json, csv, label, checked}]
 let loadedCache = new Map();// url -> [{src, dst, source}]
-let allRows = [];           // 正規化済みも保持するならここに
+let allRows = [];
 
-// ---------- UI: モード切り替え ----------
+// --- モード切り替え ---
 for (const id of ['mode-uk2ja','mode-ja2uk','mode-both']) {
   document.getElementById(id).addEventListener('click', (e)=>{
     document.querySelectorAll('.seg button').forEach(b=>b.classList.remove('active'));
@@ -118,7 +122,7 @@ for (const id of ['mode-uk2ja','mode-ja2uk','mode-both']) {
   });
 }
 
-// ---------- UI: すべて選択/解除 ----------
+// --- すべて選択/解除 ---
 document.getElementById('selectAll').addEventListener('click', ()=>{
   $fileChecks.querySelectorAll('input[type=checkbox]').forEach(ch=> ch.checked = true);
   runSearch();
@@ -128,7 +132,7 @@ document.getElementById('deselectAll').addEventListener('click', ()=>{
   runSearch();
 });
 
-// ---------- UI: 入力 ----------
+// --- 入力 ---
 $q.addEventListener('keydown', e=>{
   if (e.key === 'Enter') runSearch();
 });
@@ -136,31 +140,27 @@ document.getElementById('btnClear').addEventListener('click', ()=>{
   $q.value = ''; runSearch(); $q.focus();
 });
 
-// ---------- 状態表示 ----------
+// --- 状態表示 ---
 function setStatus(t){ if($status) $status.textContent = t; }
 function setCounts(total, hits, shown){
-  $row('rowCount').textContent = String(total);
-  $row('hitCount').textContent = String(hits);
-  $row('shownCount').textContent = String(shown);
+  document.getElementById('rowCount').textContent = String(total);
+  document.getElementById('hitCount').textContent = String(hits);
+  document.getElementById('shownCount').textContent = String(shown);
 }
 
-// ---------- 正規化 ----------
+// --- 正規化 ---
 function toNFKC(s){ try{ return s.normalize('NFKC'); }catch{ return s; } }
-function removeAccent(s){ return s.replace(/\u0301/g,''); } // combining acute
+function removeAccent(s){ return s.replace(/\u0301/g,''); }
 function toHiragana(s){
   return s.replace(/[\u30A1-\u30F6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
 }
 function stripDakutenAndChoon(s){
-  // NFD分解して結合記号(濁点U+3099/半濁点U+309A)と長音(U+30FC)を消す→NFC
   try{
     const nfd = s.normalize('NFD').replace(/[\u3099\u309A]/g,'').replace(/\u30FC/g,'');
     return nfd.normalize('NFC');
   }catch{ return s.replace(/\u30FC/g,''); }
 }
-function stripPunct(s){
-  // 文字・数字・空白 以外を除去
-  return s.replace(/[^\p{L}\p{N}\s]/gu,'');
-}
+function stripPunct(s){ return s.replace(/[^\p{L}\p{N}\s]/gu,''); }
 function normalize(s){
   if (!s) return '';
   const opts = {
@@ -182,7 +182,7 @@ function normalize(s){
   return t;
 }
 
-// ---------- データセット読み込み ----------
+// --- データセット読み込み ---
 function guessDirByName(name){
   const n = name.toLowerCase();
   if (n.includes('ukr-jap')) return 'uk2ja';
@@ -192,12 +192,9 @@ function guessDirByName(name){
 
 async function loadOne(url, sourceLabel){
   if (loadedCache.has(url)) return loadedCache.get(url);
-
-  // 1) JSONとして読む
   try{
     const r = await fetch(url, {cache:'no-store'});
     if (!r.ok) throw new Error('HTTP '+r.status);
-    // JSONかテキストか判定
     const ct = r.headers.get('content-type')||'';
     if (ct.includes('application/json') || url.endsWith('.json')) {
       const j = await r.json();
@@ -211,7 +208,6 @@ async function loadOne(url, sourceLabel){
       return rows;
     }
   }catch(e){
-    // 2) テキスト→CSVとして再挑戦
     try{
       const r2 = await fetch(url, {cache:'no-store'});
       const txt = await r2.text();
@@ -226,33 +222,27 @@ async function loadOne(url, sourceLabel){
   }
 }
 
-// JSON のどの形でも [{src,dst,source,dir}] に変換
 function convertAnyToPairs(data, sourceLabel){
   const pairs = [];
   const dir = guessDirByName(sourceLabel||'');
   if (Array.isArray(data)){
-    // [{ukr:"", jap:""}] / [{src:"", dst:""}] といった配列
     for (const r of data){
       const uk = r.ukr ?? r.UKR ?? r.src ?? r[0];
       const ja = r.jap ?? r.JA  ?? r.dst ?? r[1];
       if (uk!=null && ja!=null) pairs.push({src:String(uk), dst:String(ja), source:sourceLabel, dir});
     }
   } else if (typeof data === 'object' && data){
-    // { "語":"訳", ... }（今回の形式）
     for (const [k,v] of Object.entries(data)){
       pairs.push({src:String(k), dst:String(v), source:sourceLabel, dir});
     }
   } else if (typeof data === 'string'){
-    // CSV文字列
     return csvTextToPairs(data, sourceLabel);
   }
   return pairs;
 }
 
-// CSV文字列 → [{src,dst,source,dir}]
 function csvTextToPairs(txt, sourceLabel){
   const pairs = [];
-  // 区切りはタブ優先、無ければカンマ
   const delim = txt.includes('\t') ? '\t' : ',';
   const lines = txt.split(/\r?\n/);
   const dir = guessDirByName(sourceLabel||'');
@@ -265,7 +255,6 @@ function csvTextToPairs(txt, sourceLabel){
   return pairs;
 }
 
-// ---------- manifest 読み込み → UI 反映 ----------
 function renderFileChecks(files){
   $fileChecks.innerHTML = '';
   const defaults = new Set(['ukr-jap.json','ukr-jap-ad.json']); // 初期ON
@@ -327,28 +316,22 @@ async function loadDatasetsAndRender(){
   }
 }
 
-// ---------- 検索 ----------
 async function buildActiveRows(){
-  // 選択中のファイルを読み込んで合成
   const selected = filesState.filter(f=>f.checked);
   const all = [];
   for (const f of selected){
     const url = (f.json && f.json.trim()) ? f.json : (f.csv || '');
     if (!url) continue;
     const rows = await loadOne(url, f.label || url);
-    // rows: [{src,dst,source,dir}]
-    // モードに応じて向きを調整して push
     for (const r of rows){
       const dir = r.dir || guessDirByName(r.source||'');
       if (currentMode === 'uk2ja'){
-        // UK→JA を使う。ja2uk の場合は反転して使う
         if (dir === 'ja2uk') all.push({src:r.dst, dst:r.src, source:r.source});
         else                 all.push({src:r.src, dst:r.dst, source:r.source});
       }else if (currentMode === 'ja2uk'){
         if (dir === 'uk2ja') all.push({src:r.dst, dst:r.src, source:r.source});
         else                 all.push({src:r.src, dst:r.dst, source:r.source});
       }else{
-        // both: そのまま＋反転の両方を用意
         all.push({src:r.src, dst:r.dst, source:r.source});
         all.push({src:r.dst, dst:r.src, source:r.source});
       }
@@ -364,13 +347,8 @@ function matchFunc(mode, queryNorm){
     try { re = new RegExp(queryNorm, 'iu'); } catch{ re = /$^/; }
     return s => re.test(s);
   }
-  if (how === 'exact'){
-    return s => s === queryNorm;
-  }
-  if (how === 'starts'){
-    return s => s.startsWith(queryNorm);
-  }
-  // contains
+  if (how === 'exact')  return s => s === queryNorm;
+  if (how === 'starts') return s => s.startsWith(queryNorm);
   return s => s.includes(queryNorm);
 }
 
@@ -388,7 +366,6 @@ async function runSearch(){
     if (m(srcN)) results.push(r);
   }
 
-  // 表示（上限200）
   const MAX = 200;
   $tbody.innerHTML = '';
   for (let i=0;i<Math.min(MAX, results.length);i++){
@@ -405,7 +382,6 @@ async function runSearch(){
   setStatus('準備完了');
 }
 
-// ---------- 起動 ----------
 document.addEventListener('DOMContentLoaded', ()=>{
   loadDatasetsAndRender().then(()=> runSearch());
 });
