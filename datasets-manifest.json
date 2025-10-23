@@ -1,70 +1,57 @@
-{
-  "datasets": [
-    {
-      "path": "jap-ukr.json",
-      "source": "jap-ukr.csv",
-      "label": "jap-ukr.csv",
-      "version": "e37219c58a29"
-    },
-    {
-      "path": "jap-ukr-lat.json",
-      "source": "jap-ukr-lat.csv",
-      "label": "jap-ukr-lat.csv",
-      "version": "99b15e7b09e2"
-    },
-    {
-      "path": "jap-ukr-yomi.json",
-      "source": "jap-ukr-yomi.csv",
-      "label": "jap-ukr-yomi.csv",
-      "version": "7edebb829b8d"
-    },
-    {
-      "path": "ukr-acc.json",
-      "source": "ukr-acc.csv",
-      "label": "ukr-acc.csv",
-      "version": "0606b72f270e"
-    },
-    {
-      "path": "ukr-frek-pro.json",
-      "source": "ukr-frek-pro.csv",
-      "label": "ukr-frek-pro.csv",
-      "version": "09679863a754"
-    },
-    {
-      "path": "ukr-frek-rev.json",
-      "source": "ukr-frek-rev.csv",
-      "label": "ukr-frek-rev.csv",
-      "version": "f6b903031e7a"
-    },
-    {
-      "path": "ukr-henka.json",
-      "source": "ukr-henka.csv",
-      "label": "ukr-henka.csv",
-      "version": "45eb5a437960"
-    },
-    {
-      "path": "ukr-jap.json",
-      "source": "ukr-jap.csv",
-      "label": "ukr-jap.csv",
-      "version": "3b61e553b50f"
-    },
-    {
-      "path": "ukr-jap-ad.json",
-      "source": "ukr-jap-ad.csv",
-      "label": "ukr-jap-ad.csv",
-      "version": "214696a25241"
-    },
-    {
-      "path": "ukr-jap-ad-lat.json",
-      "source": "ukr-jap-ad-lat.csv",
-      "label": "ukr-jap-ad-lat.csv",
-      "version": "6a92b0023a3c"
-    },
-    {
-      "path": "ukr-jap-lat.json",
-      "source": "ukr-jap-lat.csv",
-      "label": "ukr-jap-lat.csv",
-      "version": "88e49b338acd"
-    }
-  ]
-}
+[
+  {
+    "label": "jap-ukr-lat.json",
+    "file": "jap-ukr-lat.json",
+    "direction": "uk2ja"
+  },
+  {
+    "label": "jap-ukr-yomi.json",
+    "file": "jap-ukr-yomi.json",
+    "direction": "uk2ja"
+  },
+  {
+    "label": "jap-ukr.json",
+    "file": "jap-ukr.json",
+    "direction": "uk2ja"
+  },
+  {
+    "label": "ukr-acc.json",
+    "file": "ukr-acc.json",
+    "direction": "uk2ja"
+  },
+  {
+    "label": "ukr-frek-pro.json",
+    "file": "ukr-frek-pro.json",
+    "direction": "uk2ja"
+  },
+  {
+    "label": "ukr-frek-rev.json",
+    "file": "ukr-frek-rev.json",
+    "direction": "uk2ja"
+  },
+  {
+    "label": "ukr-henka.json",
+    "file": "ukr-henka.json",
+    "direction": "uk2ja"
+  },
+  {
+    "label": "ukr-jap-ad-lat.json",
+    "file": "ukr-jap-ad-lat.json",
+    "direction": "uk2ja"
+  },
+  {
+    "label": "ukr-jap-ad.json",
+    "file": "ukr-jap-ad.json",
+    "direction": "uk2ja"
+  },
+  {
+    "label": "ukr-jap-lat.json",
+    "file": "ukr-jap-lat.json",
+    "direction": "uk2ja"
+  },
+  {
+    "label": "ukr-jap.json",
+    "file": "ukr-jap.json",
+    "direction": "uk2ja"
+  }
+]
