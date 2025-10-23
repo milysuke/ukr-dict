@@ -1,94 +1,15 @@
 {
-  "title": "ウクライナ語日本語・日本語ウクライナ語辞典",
   "files": [
-    {
-      "csv": "jap-ukr.csv",
-      "json": "jap-ukr.json",
-      "label": "jap-ukr.csv",
-      "direction": "ja2uk",
-      "src_col": 0,
-      "dst_col": 2
-    },
-    {
-      "csv": "jap-ukr-lat.csv",
-      "json": "jap-ukr-lat.json",
-      "label": "jap-ukr-lat.csv",
-      "direction": "ja2uk",
-      "src_col": 0,
-      "dst_col": 2
-    },
-    {
-      "csv": "jap-ukr-yomi.csv",
-      "json": "jap-ukr-yomi.json",
-      "label": "jap-ukr-yomi.csv",
-      "direction": "ja2uk",
-      "src_col": 0,
-      "dst_col": 2
-    },
-    {
-      "csv": "ukr-acc.csv",
-      "json": "ukr-acc.json",
-      "label": "ukr-acc.csv",
-      "direction": "uk2ja",
-      "src_col": 0,
-      "dst_col": 2
-    },
-    {
-      "csv": "ukr-frek-pro.csv",
-      "json": "ukr-frek-pro.json",
-      "label": "ukr-frek-pro.csv",
-      "direction": "uk2ja",
-      "src_col": 0,
-      "dst_col": 2
-    },
-    {
-      "csv": "ukr-frek-rev.csv",
-      "json": "ukr-frek-rev.json",
-      "label": "ukr-frek-rev.csv",
-      "direction": "uk2ja",
-      "src_col": 0,
-      "dst_col": 2
-    },
-    {
-      "csv": "ukr-henka.csv",
-      "json": "ukr-henka.json",
-      "label": "ukr-henka.csv",
-      "direction": "uk2ja",
-      "src_col": 0,
-      "dst_col": 2
-    },
-    {
-      "csv": "ukr-jap.csv",
-      "json": "ukr-jap.json",
-      "label": "ukr-jap.csv",
-      "direction": "uk2ja",
-      "src_col": 0,
-      "dst_col": 2
-    },
-    {
-      "csv": "ukr-jap-ad.csv",
-      "json": "ukr-jap-ad.json",
-      "label": "ukr-jap-ad.csv",
-      "direction": "uk2ja",
-      "src_col": 0,
-      "dst_col": 2
-    },
-    {
-      "csv": "ukr-jap-ad-lat.csv",
-      "json": "ukr-jap-ad-lat.json",
-      "label": "ukr-jap-ad-lat.csv",
-      "direction": "uk2ja",
-      "src_col": 0,
-      "dst_col": 2
-    },
-    {
-      "csv": "ukr-jap-lat.csv",
-      "json": "ukr-jap-lat.json",
-      "label": "ukr-jap-lat.csv",
-      "direction": "uk2ja",
-      "src_col": 0,
-      "dst_col": 2
-    }
-  ],
-  "page_size": 200
+    { "csv": "ukr-jap.csv",          "label": "ukr-jap.json",          "direction": "uk2ja", "src_col": 0, "dst_col": 1 },
+    { "csv": "ukr-jap-ad.csv",       "label": "ukr-jap-ad.json",       "direction": "uk2ja", "src_col": 0, "dst_col": 1 },
+    { "csv": "jap-ukr.csv",          "label": "jap-ukr.json",          "direction": "ja2uk", "src_col": 0, "dst_col": 1 },
+    { "csv": "jap-ukr-lat.csv",      "label": "jap-ukr-lat.json",      "direction": "ja2uk", "src_col": 0, "dst_col": 1 },
+    { "csv": "jap-ukr-yomi.csv",     "label": "jap-ukr-yomi.json",     "direction": "ja2uk", "src_col": 0, "dst_col": 1 },
+    { "csv": "ukr-acc.csv",          "label": "ukr-acc.json",          "direction": "uk2ja", "src_col": 0, "dst_col": 1 },
+    { "csv": "ukr-frek-pro.csv",     "label": "ukr-frek-pro.json",     "direction": "uk2ja", "src_col": 0, "dst_col": 1 },
+    { "csv": "ukr-frek-rev.csv",     "label": "ukr-frek-rev.json",     "direction": "uk2ja", "src_col": 0, "dst_col": 1 },
+    { "csv": "ukr-henka.csv",        "label": "ukr-henka.json",        "direction": "uk2ja", "src_col": 0, "dst_col": 1 },
+    { "csv": "ukr-jap-lat.csv",      "label": "ukr-jap-lat.json",      "direction": "uk2ja", "src_col": 0, "dst_col": 1 },
+    { "csv": "ukr-jap-ad-lat.csv",   "label": "ukr-jap-ad-lat.json",   "direction": "uk2ja", "src_col": 0, "dst_col": 1 }
+  ]
 }
